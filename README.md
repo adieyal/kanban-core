@@ -1,5 +1,10 @@
 # Kanban Core Library
 
+[![Tests](https://github.com/redbaron/kanban-core/workflows/Tests/badge.svg)](https://github.com/redbaron/kanban-core/actions)
+[![Coverage](https://codecov.io/gh/redbaron/kanban-core/branch/main/graph/badge.svg)](https://codecov.io/gh/redbaron/kanban-core)
+[![PyPI version](https://badge.fury.io/py/kanban-core.svg)](https://badge.fury.io/py/kanban-core)
+[![Python versions](https://img.shields.io/pypi/pyversions/kanban-core.svg)](https://pypi.org/project/kanban-core/)
+
 A comprehensive, extensible kanban board implementation designed with dependency injection in mind, allowing you to easily plug in external libraries for persistence, search, automation, or other advanced features.
 
 ## Features
@@ -90,8 +95,17 @@ pre-commit install
 ### Running Tests
 
 ```bash
-pytest
+# Run tests
+make test
+
+# Run tests with coverage
+make test-cov
+
+# Generate HTML coverage report
+make coverage-html
 ```
+
+The project maintains high test coverage. View the latest coverage report in `htmlcov/index.html` after running `make coverage-html`.
 
 ### Code Quality
 

@@ -107,8 +107,17 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["src"]
 branch = true
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__init__.py",
+]
 
 [tool.coverage.report]
+show_missing = true
+skip_covered = false
+skip_empty = true
+precision = 2
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -120,7 +129,15 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+    "\\.\\.\\.",  # Ellipsis
+    "pass",
 ]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
 
 # MyPy configuration
 [tool.mypy]
