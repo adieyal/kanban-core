@@ -69,10 +69,14 @@ from .models import (
 from .permissions import Permission, PermissionChecker, SimplePermissionChecker
 from .repositories import IKanbanRepository, InMemoryKanbanRepository
 from .services import (
+    BoardAdminService,
+    CardWorkflowService,
+    EventFactory,
     IAutomationRunner,
     ICardSearcher,
     InMemoryCardSearcher,
     SyncAutomationRunner,
+    _KanbanServiceCore,
 )
 
 __version__ = "1.0.0"
@@ -119,6 +123,10 @@ __all__ = [
     "InMemoryCardSearcher",
     "IAutomationRunner",
     "SyncAutomationRunner",
+    "BoardAdminService",
+    "CardWorkflowService",
+    "EventFactory",
+    "_KanbanServiceCore",
     # Metrics
     "MetricsCalculator",
     "ICalendar",
