@@ -17,7 +17,8 @@ from ..exceptions import (
 from ..models import Board, Card
 from ..permissions import Permission, PermissionChecker
 from ..repositories import IKanbanRepository
-from .automation import AutomationContext, IAutomationRunner
+from .automation import IAutomationRunner
+from .automation_types import AutomationContext
 from .search import ICardSearcher
 
 

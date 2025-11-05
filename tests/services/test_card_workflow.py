@@ -229,15 +229,103 @@ class TestCardWorkflowService:
         blocker.blocks = {"card2"}
         blocked = Card(id="card2", column_id="col1", title="Blocked")
         blocked.blocked_by = {"card1"}
-        
+
         self.board.cards = {"card1": blocker, "card2": blocked}
-        
+
         self.service.unblock_card_dependency(
             board_id="board1",
             blocking_card_id="card1",
             card_to_unblock_id="card2",
             user_id="user1"
         )
-        
+
         assert "card2" not in blocker.blocks
         assert "card1" not in blocked.blocked_by
+
+    def test_block_card_dependency_direct_circular(self):
+        """Test blocking fails when it would create a direct circular dependency."""
+        card1 = Card(id="card1", column_id="col1", title="Card 1")
+        card2 = Card(id="card2", column_id="col1", title="Card 2")
+        # card1 already blocks card2
+        card1.blocks = {"card2"}
+        card2.blocked_by = {"card1"}
+
+        self.board.cards = {"card1": card1, "card2": card2}
+
+        # Try to make card2 block card1 (would create cycle)
+        with pytest.raises(ValidationError, match="circular dependency"):
+            self.service.block_card_dependency(
+                board_id="board1",
+                blocking_card_id="card2",
+                card_to_block_id="card1",
+                user_id="user1"
+            )
+
+    def test_block_card_dependency_indirect_circular(self):
+        """Test blocking fails when it would create an indirect circular dependency."""
+        card1 = Card(id="card1", column_id="col1", title="Card 1")
+        card2 = Card(id="card2", column_id="col1", title="Card 2")
+        card3 = Card(id="card3", column_id="col1", title="Card 3")
+
+        # Create chain: card1 blocks card2, card2 blocks card3
+        card1.blocks = {"card2"}
+        card2.blocked_by = {"card1"}
+        card2.blocks = {"card3"}
+        card3.blocked_by = {"card2"}
+
+        self.board.cards = {"card1": card1, "card2": card2, "card3": card3}
+
+        # Try to make card3 block card1 (would create cycle: card1 -> card2 -> card3 -> card1)
+        with pytest.raises(ValidationError, match="circular dependency"):
+            self.service.block_card_dependency(
+                board_id="board1",
+                blocking_card_id="card3",
+                card_to_block_id="card1",
+                user_id="user1"
+            )
+
+    def test_block_card_dependency_self_blocking(self):
+        """Test blocking fails when trying to block a card with itself."""
+        card1 = Card(id="card1", column_id="col1", title="Card 1")
+
+        self.board.cards = {"card1": card1}
+
+        # Try to make card1 block itself
+        with pytest.raises(ValidationError, match="circular dependency"):
+            self.service.block_card_dependency(
+                board_id="board1",
+                blocking_card_id="card1",
+                card_to_block_id="card1",
+                user_id="user1"
+            )
+
+    def test_block_card_dependency_complex_chain_allowed(self):
+        """Test blocking is allowed when it doesn't create a cycle."""
+        card1 = Card(id="card1", column_id="col1", title="Card 1")
+        card2 = Card(id="card2", column_id="col1", title="Card 2")
+        card3 = Card(id="card3", column_id="col1", title="Card 3")
+        card4 = Card(id="card4", column_id="col1", title="Card 4")
+
+        # Create chain: card1 blocks card2, card3 blocks card4
+        card1.blocks = {"card2"}
+        card2.blocked_by = {"card1"}
+        card3.blocks = {"card4"}
+        card4.blocked_by = {"card3"}
+
+        self.board.cards = {
+            "card1": card1,
+            "card2": card2,
+            "card3": card3,
+            "card4": card4
+        }
+
+        # This should succeed: card2 can block card3 (no cycle)
+        self.service.block_card_dependency(
+            board_id="board1",
+            blocking_card_id="card2",
+            card_to_block_id="card3",
+            user_id="user1"
+        )
+
+        assert "card3" in card2.blocks
+        assert "card2" in card3.blocked_by

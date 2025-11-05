@@ -3,19 +3,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from ..events import Event
 from ..exceptions import KanbanError
 from ..models import Board
 from ..repositories import snapshot_board
+from .automation_types import AutomationContext
 
-
-@dataclass
-class AutomationContext:
-    """Context for automation execution tracking."""
-    
-    processed_event_ids: set[str] = field(default_factory=set)
+if TYPE_CHECKING:
+    from .core import _KanbanServiceCore
 
 
 class IAutomationRunner(ABC):
@@ -38,7 +35,7 @@ class IAutomationRunner(ABC):
 
 class SyncAutomationRunner(IAutomationRunner):
     """Synchronous automation runner with chain limit protection."""
-    
+
     MAX_CHAIN = 25  # sane default
 
     def run(
@@ -63,7 +60,3 @@ class SyncAutomationRunner(IAutomationRunner):
             rule.action(event, board, service_core, ctx)
             dirty |= board != before
         return dirty
-
-
-# Import at the end to avoid circular imports
-from .core import _KanbanServiceCore  # noqa: E402

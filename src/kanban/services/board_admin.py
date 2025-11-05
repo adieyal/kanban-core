@@ -16,7 +16,7 @@ from ..events import (
 from ..exceptions import NotFoundError, ValidationError
 from ..models import Board, Column, ColumnPolicy
 from ..permissions import Permission
-from .automation import AutomationContext
+from .automation_types import AutomationContext
 from .core import _KanbanServiceCore
 
 

@@ -69,6 +69,42 @@ rule = create_auto_move_rule("ready", "In Progress")
 board.automation_rules.append(rule)
 ```
 
+## Important Limitations
+
+### Serialization of Automation Rules and Column Policies
+
+**Limitation**: `AutomationRule` and `ColumnPolicy` objects that contain Python callable functions (triggers, actions, entry/exit criteria) cannot be serialized to JSON or persisted to databases using standard serialization methods.
+
+**Impact**:
+- Boards with custom automation rules or column policies with callables cannot be directly serialized
+- Custom repository implementations need special handling for these objects
+- Boards cannot be easily transmitted over network or saved to disk with their automation logic
+
+**Workarounds**:
+1. **Separate Storage**: Store automation rules separately from board data, reconstructing them on application startup
+2. **Rule Registry**: Maintain a registry of named rules that can be referenced by ID:
+   ```python
+   RULE_REGISTRY = {
+       "auto-move-ready": create_auto_move_rule("ready", "In Progress"),
+       "due-date-warning": create_due_date_warning_rule(3)
+   }
+
+   # Store only rule IDs with the board
+   board_data = {
+       "id": "board1",
+       "rule_ids": ["auto-move-ready", "due-date-warning"]
+   }
+   ```
+3. **Exclude from Serialization**: Remove automation rules and custom policies before serialization:
+   ```python
+   def serialize_board(board):
+       board_copy = copy.copy(board)
+       board_copy.automation_rules = []  # Exclude rules
+       return json.dumps(board_copy.to_dict())
+   ```
+
+**Future Plans**: We plan to introduce a serializable rule definition language (DSL or expression-based) in a future version to enable full board serialization.
+
 ## Architecture
 
 The library is organized into several key modules:

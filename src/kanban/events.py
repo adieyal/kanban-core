@@ -89,6 +89,12 @@ class Event:
                 return v.total_seconds()
             if isinstance(v, Enum):
                 return v.value
+            # Recursively handle nested dictionaries
+            if isinstance(v, dict):
+                return {k: _serialize_value(val) for k, val in v.items()}
+            # Recursively handle lists
+            if isinstance(v, (list, tuple)):
+                return [_serialize_value(item) for item in v]
             return v
 
         return {

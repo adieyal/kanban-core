@@ -10,7 +10,7 @@ from ..exceptions import NotFoundError, ValidationError
 from ..models import Board, Card
 from ..permissions import Permission
 from ..repositories import snapshot_board
-from .automation import AutomationContext
+from .automation_types import AutomationContext
 from .core import _KanbanServiceCore
 
 
@@ -24,6 +24,39 @@ class CardWorkflowService:
 
     def __init__(self, core: _KanbanServiceCore):
         self.core = core
+
+    def _would_create_cycle(
+        self, board: Board, blocker_id: str, blocked_id: str
+    ) -> bool:
+        """
+        Check if adding a blocking relationship would create a circular dependency.
+        Returns True if blocked_id already blocks blocker_id (directly or indirectly).
+
+        Uses BFS to traverse the blocking graph from blocked_id to see if it
+        eventually reaches blocker_id.
+        """
+        if blocker_id == blocked_id:
+            return True
+
+        visited = set()
+        to_visit = [blocked_id]
+
+        while to_visit:
+            current_id = to_visit.pop(0)
+            if current_id in visited:
+                continue
+            visited.add(current_id)
+
+            # If the blocked card blocks the blocker, we have a cycle
+            if current_id == blocker_id:
+                return True
+
+            # Add all cards that the current card blocks
+            current_card = board.cards.get(current_id)
+            if current_card:
+                to_visit.extend(current_card.blocks)
+
+        return False
 
     def _validate_custom_fields(self, board: Board, custom: dict[str, Any]):
         for field_key, value in custom.items():
@@ -153,6 +186,13 @@ class CardWorkflowService:
             blocked = board.cards.get(card_to_block_id)
             if not blocker or not blocked:
                 raise NotFoundError("One or both cards not found")
+
+            # Check for circular dependencies before creating the relationship
+            if self._would_create_cycle(board, blocking_card_id, card_to_block_id):
+                raise ValidationError(
+                    f"Cannot block card '{card_to_block_id}' with '{blocking_card_id}': "
+                    "would create a circular dependency"
+                )
 
             blocker.blocks.add(card_to_block_id)
             blocked.blocked_by.add(blocking_card_id)

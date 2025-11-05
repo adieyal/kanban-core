@@ -1,6 +1,7 @@
 """Service layer components for the kanban library."""
 
-from .automation import AutomationContext, IAutomationRunner, SyncAutomationRunner
+from .automation import IAutomationRunner, SyncAutomationRunner
+from .automation_types import AutomationContext
 from .board_admin import BoardAdminService
 from .card_workflow import CardWorkflowService
 from .core import EventFactory, _KanbanServiceCore

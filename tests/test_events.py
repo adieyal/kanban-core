@@ -195,14 +195,18 @@ class TestEvent:
         )
         
         result = event.to_dict()
-        
-        # Sets are converted to sorted lists, but we need to handle nested serialization
-        # The event.to_dict() method doesn't recursively serialize nested dictionaries
-        # Only the top-level data items are serialized
-        assert isinstance(result["data"]["metadata"]["tags"], set)
+
+        # Verify nested data structures are recursively serialized
+        # Sets should be converted to sorted lists even when nested
+        assert isinstance(result["data"]["metadata"]["tags"], list)
+        assert result["data"]["metadata"]["tags"] == ["review", "urgent"]
+        # Datetime objects should be converted to ISO format strings
         assert result["data"]["metadata"]["created"] == now.isoformat()
+        # Timedelta objects should be converted to seconds
         assert result["data"]["metadata"]["duration"] == duration.total_seconds()
+        # Enum objects should be converted to their values
         assert result["data"]["metadata"]["status"] == "b"
+        # Simple values should pass through unchanged
         assert result["data"]["simple_value"] == "test"
 
 

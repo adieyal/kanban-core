@@ -518,6 +518,156 @@ kanban = production_kanban.get_kanban()
 # Use exactly like SimpleKanban, but with production-ready features
 ```
 
+## Serialization Considerations for Custom Repositories
+
+### Important Limitation: Callable Storage
+
+When implementing custom repositories for persistent storage, be aware that `AutomationRule` and `ColumnPolicy` objects contain Python callable functions that cannot be serialized using standard methods (JSON, pickle over network, etc.).
+
+#### Affected Objects
+
+1. **AutomationRule**: Contains `trigger` and `action` callables
+2. **ColumnPolicy**: Contains `entry_criteria` and `exit_criteria` callables
+
+#### Impact on Custom Repositories
+
+If you're implementing a database-backed repository, you have several options:
+
+##### Option 1: Exclude Automation Rules from Serialization
+
+```python
+class DatabaseRepository(IKanbanRepository):
+    def save(self, board: Board, expected_version: int | None = None) -> Board:
+        # Create a copy without automation rules
+        board_data = {
+            "id": board.id,
+            "name": board.name,
+            "columns": self._serialize_columns(board.columns),
+            "cards": self._serialize_cards(board.cards),
+            # Note: automation_rules intentionally omitted
+        }
+
+        # Save to database
+        self.db.save_board(board_data)
+
+        # Return the original board (with rules intact in memory)
+        return board
+
+    def get(self, board_id: str) -> Board | None:
+        data = self.db.get_board(board_id)
+        if not data:
+            return None
+
+        board = Board(**data)
+        # Automation rules must be added programmatically after loading
+        board.automation_rules = self._get_default_rules()
+        return board
+```
+
+##### Option 2: Rule Registry Pattern
+
+Maintain a registry of named rules that can be referenced by ID:
+
+```python
+from kanban import create_auto_move_rule, create_due_date_warning_rule
+
+# Global registry of automation rules
+AUTOMATION_RULE_REGISTRY = {
+    "auto-move-ready": create_auto_move_rule("ready", "In Progress"),
+    "auto-move-done": create_auto_move_rule("done", "Done"),
+    "due-date-warning-3d": create_due_date_warning_rule(3),
+    "due-date-warning-7d": create_due_date_warning_rule(7),
+}
+
+class DatabaseRepository(IKanbanRepository):
+    def save(self, board: Board, expected_version: int | None = None) -> Board:
+        # Extract rule IDs instead of the rules themselves
+        rule_ids = [rule.id for rule in board.automation_rules]
+
+        board_data = {
+            "id": board.id,
+            "name": board.name,
+            "rule_ids": rule_ids,  # Store IDs only
+            # ... other fields
+        }
+
+        self.db.save_board(board_data)
+        return board
+
+    def get(self, board_id: str) -> Board | None:
+        data = self.db.get_board(board_id)
+        if not data:
+            return None
+
+        # Reconstruct board
+        board = Board(id=data["id"], name=data["name"])
+
+        # Restore automation rules from registry
+        for rule_id in data.get("rule_ids", []):
+            if rule_id in AUTOMATION_RULE_REGISTRY:
+                board.automation_rules.append(AUTOMATION_RULE_REGISTRY[rule_id])
+
+        return board
+```
+
+##### Option 3: Separate Configuration Storage
+
+Store rule configurations separately from board data:
+
+```python
+class DatabaseRepository(IKanbanRepository):
+    def __init__(self, db_connection, rule_config_path: str):
+        self.db = db_connection
+        self.rule_config = self._load_rule_config(rule_config_path)
+
+    def _load_rule_config(self, path: str) -> dict:
+        # Load rule definitions from config file (YAML, JSON, etc.)
+        import yaml
+        with open(path) as f:
+            return yaml.safe_load(f)
+
+    def _build_rules_from_config(self, rule_names: list[str]) -> list[AutomationRule]:
+        rules = []
+        for name in rule_names:
+            config = self.rule_config.get(name)
+            if config:
+                # Build rule based on configuration
+                rule = self._create_rule_from_config(config)
+                rules.append(rule)
+        return rules
+```
+
+### Column Policies
+
+Similar considerations apply to `ColumnPolicy` objects with custom `entry_criteria` and `exit_criteria`:
+
+```python
+# Instead of storing callables
+policy = ColumnPolicy(
+    wip_limit=5,
+    entry_criteria=lambda card: "ready" in card.custom_fields.get("labels", set())
+)
+
+# Use configuration-based approach
+policy_config = {
+    "wip_limit": 5,
+    "entry_criteria": {
+        "type": "label_check",
+        "label": "ready"
+    }
+}
+
+# Then rebuild the callable from config when loading
+def build_entry_criteria(config):
+    if config["type"] == "label_check":
+        label = config["label"]
+        return lambda card: label in card.custom_fields.get("labels", set())
+```
+
+### Future Direction
+
+We are planning to introduce a serializable rule definition language in a future version that will eliminate these limitations and enable full board serialization including automation logic.
+
 ## Best Practices
 
 1. **Use Interfaces**: Always program against the interfaces, not concrete implementations
@@ -525,6 +675,7 @@ kanban = production_kanban.get_kanban()
 3. **Fail Gracefully**: Handle errors in custom components without breaking core functionality
 4. **Test Thoroughly**: Write tests for your custom implementations
 5. **Document**: Clearly document any custom behavior or requirements
+6. **Handle Non-Serializable Objects**: Be aware of callable storage limitations when implementing persistent repositories
 
 ## Testing Custom Implementations
 
