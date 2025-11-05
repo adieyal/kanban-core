@@ -1,0 +1,73 @@
+# Configuration for Pull Request Labeler
+# See https://github.com/actions/labeler
+
+# Documentation changes
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'docs/**/*'
+      - '*.md'
+      - 'README.md'
+
+# Source code changes
+core:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/kanban/*.py'
+
+# Services changes
+services:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/kanban/services/**/*.py'
+
+# Test changes
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tests/**/*.py'
+      - 'tests/**/*'
+
+# CI/CD changes
+ci-cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**/*'
+      - '.github/workflows/**/*.yml'
+
+# Configuration changes
+configuration:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'setup.cfg'
+      - '.pre-commit-config.yaml'
+      - 'Makefile'
+
+# Dependencies
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+
+# Bug fixes (based on branch name or title)
+bug:
+  - head-branch: ['^bug/', 'bug-', 'fix/', 'fix-', 'hotfix/']
+  - title: ['^fix:', '^bug:', 'fix\\(', 'bug\\(']
+
+# Features (based on branch name or title)
+feature:
+  - head-branch: ['^feature/', 'feat/', 'feature-']
+  - title: ['^feat:', '^feature:', 'feat\\(', 'feature\\(']
+
+# Refactoring (based on branch name or title)
+refactor:
+  - head-branch: ['^refactor/', 'refactor-']
+  - title: ['^refactor:', 'refactor\\(']
+
+# Performance improvements
+performance:
+  - head-branch: ['^perf/', 'performance/']
+  - title: ['^perf:', 'performance:']
