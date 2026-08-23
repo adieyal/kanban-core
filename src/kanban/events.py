@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import logging
-import threading
-from collections import defaultdict, deque
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from collections.abc import Iterator, Mapping
+from copy import deepcopy
+from dataclasses import dataclass, field, fields, is_dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, Protocol
 
 # ============= EVENTS SYSTEM =============
 
@@ -16,9 +14,9 @@ class EventRegistry:
     """Singleton-by-explicit-dependency; avoids module-global state."""
 
     def __init__(self, builtin: dict[str, str] | None = None):
-        self._events: dict[str, str] = builtin or {}
+        self._events: dict[str, str] = dict(builtin) if builtin is not None else {}
 
-    def register(self, code: str, description: str):
+    def register(self, code: str, description: str) -> None:
         if code in self._events:
             raise ValueError(f"Event {code!r} already registered")
         self._events[code] = description
@@ -26,7 +24,7 @@ class EventRegistry:
     def __contains__(self, code: str) -> bool:
         return code in self._events
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         yield from self._events.keys()
 
 
@@ -76,19 +74,37 @@ class Event:
     timestamp: datetime
     data: dict[str, Any] = field(default_factory=dict)
     user_id: str | None = None
+    schema_version: int = 1
+    correlation_id: str | None = None
+    causation_id: str | None = None
+    aggregate_version: int | None = None
+
+    def __post_init__(self) -> None:
+        # A frozen dataclass does not make nested dictionaries immutable. Detach the
+        # payload from the caller so later mutations cannot rewrite event history.
+        object.__setattr__(self, "data", deepcopy(self.data))
 
     def to_dict(self) -> dict[str, Any]:
         """Converts the event to a dictionary with serializable types."""
 
-        def _serialize_value(v):
+        def _serialize_value(v: Any) -> Any:
             if isinstance(v, set):
-                return sorted(list(v))  # sorted for deterministic output
+                return sorted((_serialize_value(item) for item in v), key=repr)
+            if isinstance(v, (list, tuple)):
+                return [_serialize_value(item) for item in v]
+            if isinstance(v, Mapping):
+                return {key: _serialize_value(value) for key, value in v.items()}
             if isinstance(v, datetime):
                 return v.isoformat()
             if isinstance(v, timedelta):
                 return v.total_seconds()
             if isinstance(v, Enum):
-                return v.value
+                return _serialize_value(v.value)
+            if is_dataclass(v) and not isinstance(v, type):
+                return {
+                    item.name: _serialize_value(getattr(v, item.name))
+                    for item in fields(v)
+                }
             return v
 
         return {
@@ -98,47 +114,15 @@ class Event:
             "entity_type": self.entity_type,
             "timestamp": self.timestamp.isoformat(),
             "user_id": self.user_id,
-            "data": {k: _serialize_value(v) for k, v in self.data.items()},
+            "schema_version": self.schema_version,
+            "correlation_id": self.correlation_id,
+            "causation_id": self.causation_id,
+            "aggregate_version": self.aggregate_version,
+            "data": _serialize_value(self.data),
         }
 
 
-class EventBus:
-    """
-    Simple event bus for domain events.
-    (REVISED: A-2, A-9) Now supports unsubscribing and has a max event retention size.
-    """
+class EventPublisher(Protocol):
+    """Outbound port used only after the aggregate commit succeeds."""
 
-    def __init__(self, max_size: int = 10000):
-        self._subscriptions: dict[str, set[Callable[[Event], None]]] = defaultdict(set)
-        self._lock = threading.RLock()  # re-entrant
-        self._events: deque[Event] = deque(maxlen=max_size)
-
-    def subscribe(self, event_code: str, handler: Callable[[Event], None]):
-        with self._lock:
-            self._subscriptions[event_code].add(handler)
-
-    def unsubscribe(self, event_code: str, handler: Callable[[Event], None]):
-        with self._lock:
-            self._subscriptions.get(event_code, set()).discard(handler)
-
-    def publish(self, event: Event):
-        with self._lock:
-            self._events.append(event)  # retain in history
-            handlers = self._subscriptions.get(
-                event.type, set()
-            ) | self._subscriptions.get("*", set())
-        for h in handlers.copy():  # shallow copy for safe iteration
-            try:
-                h(event)
-            except Exception as exc:
-                # Attach event info for easier debugging; leave policy decision to caller
-                logging.exception(
-                    "Event handler %s failed on %s", h, event.id, exc_info=exc
-                )
-
-    def get_events(self, since: datetime | None = None) -> list[Event]:
-        with self._lock:
-            events = list(self._events)
-        if since:
-            return [e for e in events if e.timestamp and e.timestamp > since]
-        return events
+    def publish(self, event: Event) -> None: ...

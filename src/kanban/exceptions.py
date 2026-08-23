@@ -30,12 +30,17 @@ class ConcurrencyError(KanbanError):
     """For optimistic locking failures (lost updates)."""
 
 
+class InvalidPersistenceStateError(KanbanError):
+    """Persisted state violates business-module invariants."""
+
+
 @runtime_checkable
 class Clock(Protocol):
     def __call__(self) -> datetime: ...
 
 
-utc_clock: Clock = lambda: datetime.now(timezone.utc)
+def utc_clock() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 @runtime_checkable
@@ -43,4 +48,5 @@ class IDFactory(Protocol):
     def __call__(self) -> str: ...
 
 
-uuid4_factory: IDFactory = lambda: str(uuid.uuid4())
+def uuid4_factory() -> str:
+    return str(uuid.uuid4())

@@ -1,56 +1,63 @@
-"""Basic functionality tests for the Kanban library."""
+"""Public-facade smoke tests."""
 
-from kanban import Board, Card, SimpleKanban
+from kanban import BoardView, CardView, KanbanFacade
+from kanban_adapters import (
+    EventBus,
+    InMemoryKanbanRepository,
+    SynchronousKanbanUnitOfWork,
+)
+
+
+def make_kanban() -> KanbanFacade:
+    repository = InMemoryKanbanRepository()
+    return KanbanFacade(repository, SynchronousKanbanUnitOfWork(repository, EventBus()))
 
 
 class TestBasicFunctionality:
-    """Test basic kanban functionality."""
-
     def test_create_board(self):
-        """Test board creation."""
-        kanban = SimpleKanban()
+        kanban = make_kanban()
+
         board = kanban.create_board("test_user", "Test Board")
 
-        assert isinstance(board, Board)
+        assert isinstance(board, BoardView)
         assert board.name == "Test Board"
         assert board.owner_id == "test_user"
-        assert len(board.columns) == 3  # Default: To Do, In Progress, Done
+        assert len(board.columns) == 3
 
     def test_add_card(self):
-        """Test card creation."""
-        kanban = SimpleKanban()
+        kanban = make_kanban()
         board = kanban.create_board("test_user", "Test Board")
+        todo = board.column_named("To Do")
+        assert todo is not None
 
-        card = kanban.add_card("test_user", board.id, "To Do", "Test Card")
+        card = kanban.add_card("test_user", board.id, todo.id, "Test Card")
 
-        assert isinstance(card, Card)
+        assert isinstance(card, CardView)
         assert card.title == "Test Card"
-        assert card.column_id in board.columns
+        assert card.column_id == todo.id
 
     def test_move_card(self):
-        """Test card movement between columns."""
-        kanban = SimpleKanban()
+        kanban = make_kanban()
         board = kanban.create_board("test_user", "Test Board")
-        card = kanban.add_card("test_user", board.id, "To Do", "Test Card")
+        todo = board.column_named("To Do")
+        in_progress = board.column_named("In Progress")
+        assert todo is not None and in_progress is not None
+        card = kanban.add_card("test_user", board.id, todo.id, "Test Card")
 
-        moved_card = kanban.move_card("test_user", board.id, card.id, "In Progress")
+        moved_card = kanban.move_card("test_user", board.id, card.id, in_progress.id)
 
         assert moved_card.id == card.id
-        # Find the "In Progress" column
-        in_progress_col = next(
-            c for c in board.columns.values() if c.name == "In Progress"
-        )
-        assert moved_card.column_id == in_progress_col.id
+        assert moved_card.column_id == in_progress.id
 
     def test_search_cards(self):
-        """Test card search functionality."""
-        kanban = SimpleKanban()
+        kanban = make_kanban()
         board = kanban.create_board("test_user", "Test Board")
+        todo = board.column_named("To Do")
+        assert todo is not None
+        kanban.add_card("test_user", board.id, todo.id, "Important Task")
+        kanban.add_card("test_user", board.id, todo.id, "Regular Task")
 
-        kanban.add_card("test_user", board.id, "To Do", "Important Task")
-        kanban.add_card("test_user", board.id, "To Do", "Regular Task")
-
-        # Search by text
         results = kanban.search_cards("test_user", board.id, text="Important")
+
         assert len(results) == 1
         assert results[0].title == "Important Task"

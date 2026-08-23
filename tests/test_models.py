@@ -4,15 +4,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from kanban import (
-    Board,
-    Card,
-    Column,
-    ColumnPolicy,
-    CustomField,
-    FieldType,
-    ValidationError,
-)
+from kanban import ValidationError
+from kanban.models import Board, Card, Column, ColumnPolicy, CustomField, FieldType
 
 
 class TestCard:
@@ -93,7 +86,11 @@ class TestColumn:
 
     def test_can_accept_card_entry_criteria(self):
         """Test entry criteria checking."""
-        policy = ColumnPolicy(entry_criteria=lambda card: "ready" in card.custom_fields.get("labels", set()))
+        policy = ColumnPolicy(
+            entry_criteria=lambda card: (
+                "ready" in card.custom_fields.get("labels", set())
+            )
+        )
         column = Column(id="col1", board_id="board1", policy=policy)
 
         # Card without ready label
@@ -103,7 +100,9 @@ class TestColumn:
         assert "entry criteria" in reason
 
         # Card with ready label
-        card2 = Card(id="card2", column_id="other_col", custom_fields={"labels": {"ready"}})
+        card2 = Card(
+            id="card2", column_id="other_col", custom_fields={"labels": {"ready"}}
+        )
         can_accept, reason = column.can_accept_card(card2, is_new_entry=True)
         assert can_accept
 
@@ -135,7 +134,9 @@ class TestBoard:
     def test_get_cards_in_column(self):
         """Test getting cards in a specific column."""
         board = Board(id="board1")
-        column = Column(id="col1", board_id="board1", card_ids=["card1", "card2", "card3"])
+        column = Column(
+            id="col1", board_id="board1", card_ids=["card1", "card2", "card3"]
+        )
         board.columns["col1"] = column
 
         card1 = Card(id="card1", column_id="col1")
@@ -174,6 +175,6 @@ class TestCustomField:
             field_type=FieldType.TEXT,
             validator_ids=["nonexistent_validator"],
         )
-        
+
         with pytest.raises(ValidationError, match="Unknown validator"):
             field.validate("test_value")
