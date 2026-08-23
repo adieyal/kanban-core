@@ -17,8 +17,8 @@ from ..events import (
 )
 from ..exceptions import NotFoundError, ValidationError
 from ..models import Board, Column, ColumnPolicy
-from ..repositories import restore_board, snapshot_board
 from ..permissions import Permission
+from ..repositories import restore_board, snapshot_board
 from .core import _KanbanServiceCore
 
 

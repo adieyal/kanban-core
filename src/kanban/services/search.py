@@ -37,9 +37,7 @@ class InMemoryCardSearcher:
             ]
         if assignee_ids := filters.get("assignee_ids"):
             required = (
-                {assignee_ids}
-                if isinstance(assignee_ids, str)
-                else set(assignee_ids)
+                {assignee_ids} if isinstance(assignee_ids, str) else set(assignee_ids)
             )
             results = [
                 card for card in results if required.intersection(card.assignee_ids)

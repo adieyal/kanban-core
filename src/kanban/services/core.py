@@ -38,7 +38,6 @@ T = TypeVar("T")
 _MAX_AUTOMATION_CHAIN = 25
 
 
-
 class EventFactory:
     """Factory for creating events with consistent metadata."""
 

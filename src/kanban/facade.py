@@ -21,7 +21,6 @@ from .services import (
 from .unit_of_work import KanbanUnitOfWork
 
 
-
 @dataclass(frozen=True, slots=True)
 class CardView:
     id: str
@@ -220,9 +219,7 @@ class KanbanFacade:
         to_column_id: str,
         position: int | None = None,
     ) -> CardView:
-        card = self._cards.move_card(
-            board_id, card_id, to_column_id, position, user_id
-        )
+        card = self._cards.move_card(board_id, card_id, to_column_id, position, user_id)
         board = self._core.get_board_and_check_permission(
             board_id, user_id, Permission.VIEW_BOARD
         )
