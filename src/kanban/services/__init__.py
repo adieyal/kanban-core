@@ -1,23 +1,18 @@
 """Service layer components for the kanban library."""
 
-from .automation import AutomationContext, IAutomationRunner, SyncAutomationRunner
+from .automation import AutomationRunner, SyncAutomationRunner
 from .board_admin import BoardAdminService
 from .card_workflow import CardWorkflowService
 from .core import EventFactory, _KanbanServiceCore
-from .search import ICardSearcher, InMemoryCardSearcher
+from .search import CardSearcher, InMemoryCardSearcher
 
 __all__ = [
-    # Search
-    "ICardSearcher",
-    "InMemoryCardSearcher",
-    # Automation
-    "IAutomationRunner",
-    "AutomationContext",
-    "SyncAutomationRunner",
-    # Core
-    "EventFactory",
-    "_KanbanServiceCore",
-    # Services
-    "CardWorkflowService",
+    "AutomationRunner",
     "BoardAdminService",
+    "CardSearcher",
+    "CardWorkflowService",
+    "EventFactory",
+    "InMemoryCardSearcher",
+    "SyncAutomationRunner",
+    "_KanbanServiceCore",
 ]

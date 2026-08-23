@@ -1,89 +1,112 @@
 from __future__ import annotations
 
-import copy
-import threading
-from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass
+from typing import Protocol
 
-from .exceptions import ConcurrencyError
-from .models import Board
-
-# ============= REPOSITORY PATTERN =============
+from .exceptions import InvalidPersistenceStateError
+from .models import Board, Card, Column, ColumnPolicy
 
 
-class IKanbanRepository(ABC):
-    @abstractmethod
-    def get(self, board_id: str) -> Board | None:
-        pass
-
-    # FIX 3.2.1: The save method now returns the persisted board object.
-    @abstractmethod
-    def save(self, board: Board, expected_version: int | None = None) -> Board:
-        pass
-
-    @abstractmethod
-    def delete(self, board_id: str) -> None:
-        pass
-
-    @abstractmethod
-    def list_all(self) -> list[Board]:
-        pass
-
-    @abstractmethod
-    def exists(self, board_id: str) -> bool:
-        pass
+class FrozenMap(tuple[tuple[str, object], ...]):
+    """Recursively immutable mapping used only inside persistence records."""
 
 
-def snapshot_board(board: Board) -> Board:
-    """
-    Create a deep copy of the board for safe usage.
-    """
-    if board is None:
-        return None
-    return copy.deepcopy(board)
+def _freeze(value: object) -> object:
+    if isinstance(value, dict):
+        return FrozenMap(
+            tuple(sorted((str(key), _freeze(item)) for key, item in value.items()))
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_freeze(item) for item in value)
+    return value
 
 
-class InMemoryKanbanRepository(IKanbanRepository):
-    """
-    (REVISED: A-3, A-7) An in-memory repository that is now thread-safe and uses deepcopy.
-    Now supports optimistic concurrency control.
-    """
+def _thaw(value: object) -> object:
+    if isinstance(value, FrozenMap):
+        return {key: _thaw(item) for key, item in value}
+    if isinstance(value, tuple):
+        return list(_thaw(item) for item in value)
+    if isinstance(value, frozenset):
+        return set(_thaw(item) for item in value)
+    return value
 
-    def __init__(self):
-        self._boards: dict[str, Board] = {}
-        self._lock = threading.Lock()
 
-    def get(self, board_id: str) -> Board | None:
-        with self._lock:
-            board = self._boards.get(board_id)
-            return snapshot_board(board) if board else None
+@dataclass(frozen=True, slots=True)
+class BoardSnapshot:
+    """Opaque immutable persistence record; contains no domain objects."""
 
-    def save(self, board: Board, expected_version: int | None = None) -> Board:
-        with self._lock:
-            current = self._boards.get(board.id)
-            if (
-                current
-                and expected_version is not None
-                and current.version != expected_version
-            ):
-                raise ConcurrencyError(
-                    f"Expected v{expected_version}, found v{current.version}"
-                )
+    id: str
+    version: int
+    state: FrozenMap
 
-            board.version = (
-                current.version if current else 0
-            ) + 1  # mutate caller copy
-            self._boards[board.id] = snapshot_board(board)
-            return snapshot_board(board)
 
-    def delete(self, board_id: str) -> None:
-        with self._lock:
-            if board_id in self._boards:
-                del self._boards[board_id]
+def snapshot_board(board: Board) -> BoardSnapshot:
+    state = asdict(board)
+    state.pop("id")
+    state.pop("version")
+    frozen_state = _freeze(state)
+    if not isinstance(frozen_state, FrozenMap):
+        raise TypeError("Board state must freeze to a mapping")
+    return BoardSnapshot(board.id, board.version, frozen_state)
 
-    def list_all(self) -> list[Board]:
-        with self._lock:
-            return [snapshot_board(b) for b in self._boards.values()]
 
-    def exists(self, board_id: str) -> bool:
-        with self._lock:
-            return board_id in self._boards
+def restore_board(snapshot: BoardSnapshot) -> Board:
+    data = _thaw(snapshot.state)
+    if not isinstance(data, dict):
+        raise InvalidPersistenceStateError("Invalid board snapshot payload")
+
+    columns = data.pop("columns")
+    cards = data.pop("cards")
+
+    owner_id = data.get("owner_id")
+    if not isinstance(owner_id, str) or not owner_id.strip():
+        raise InvalidPersistenceStateError("Board owner must be non-empty")
+
+    board = Board(id=snapshot.id, version=snapshot.version, **data)
+    board.columns = {
+        key: Column(
+            **{
+                **value,
+                "policy": ColumnPolicy(**value["policy"]),
+            }
+        )
+        for key, value in columns.items()
+    }
+    board.cards = {key: Card(**value) for key, value in cards.items()}
+
+    memberships: set[str] = set()
+    for column in board.columns.values():
+        if column.board_id != board.id:
+            raise InvalidPersistenceStateError("Column belongs to another board")
+        for card_id in column.card_ids:
+            if card_id not in board.cards:
+                raise InvalidPersistenceStateError("Column references an unknown card")
+            if card_id in memberships:
+                raise InvalidPersistenceStateError("Card belongs to more than one column")
+            memberships.add(card_id)
+    if memberships != set(board.cards):
+        raise InvalidPersistenceStateError("Every card must belong to exactly one column")
+
+    positions = [column.position for column in board.columns.values()]
+    if len(positions) != len(set(positions)):
+        raise InvalidPersistenceStateError("Column positions must be unique")
+
+    return board
+
+
+class KanbanRepository(Protocol):
+    """Persistence port. Infrastructure stores records, never mutable domain objects."""
+
+    def get(self, board_id: str) -> BoardSnapshot | None: ...
+
+    def save(
+        self, board: BoardSnapshot, expected_version: int | None = None
+    ) -> BoardSnapshot: ...
+
+    def delete(self, board_id: str, expected_version: int) -> None: ...
+
+    def list_all(self) -> list[BoardSnapshot]: ...
+
+    def exists(self, board_id: str) -> bool: ...

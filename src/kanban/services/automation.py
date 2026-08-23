@@ -1,69 +1,60 @@
-"""Automation runner interfaces and implementations."""
+"""Automation evaluates immutable facts and returns requested business actions."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Callable, Protocol
 
 from ..events import Event
-from ..exceptions import KanbanError
-from ..models import Board
-from ..repositories import snapshot_board
 
 
-@dataclass
-class AutomationContext:
-    """Context for automation execution tracking."""
-    
-    processed_event_ids: set[str] = field(default_factory=set)
+@dataclass(frozen=True, slots=True)
+class AutomationCardFacts:
+    id: str
+    column_id: str
+    title: str
+    due_date: datetime | None
+    archived: bool
 
 
-class IAutomationRunner(ABC):
-    """Interface for pluggable automation execution strategies."""
-
-    @abstractmethod
-    def run(
-        self,
-        board: Board,
-        event: Event,
-        service_core: _KanbanServiceCore,
-        ctx: AutomationContext,
-    ) -> bool:
-        """
-        Execute automation rules.
-        Returns a boolean 'dirty' flag indicating if the board was modified.
-        """
-        pass
+@dataclass(frozen=True, slots=True)
+class AutomationColumnFacts:
+    id: str
+    name: str
 
 
-class SyncAutomationRunner(IAutomationRunner):
-    """Synchronous automation runner with chain limit protection."""
-    
-    MAX_CHAIN = 25  # sane default
+@dataclass(frozen=True, slots=True)
+class AutomationFacts:
+    cards: tuple[AutomationCardFacts, ...]
+    columns: tuple[AutomationColumnFacts, ...]
+    now: datetime
 
-    def run(
-        self,
-        board: Board,
-        event: Event,
-        service_core: _KanbanServiceCore,
-        ctx: AutomationContext,
-    ) -> bool:
-        if len(ctx.processed_event_ids) >= self.MAX_CHAIN:
-            raise KanbanError("Automation chain limit exceeded")
-
-        if event.id in ctx.processed_event_ids:
-            return False
-        ctx.processed_event_ids.add(event.id)
-
-        dirty = False
-        for rule in filter(
-            lambda r: r.enabled and r.trigger(event), board.automation_rules
-        ):
-            before = snapshot_board(board)
-            rule.action(event, board, service_core, ctx)
-            dirty |= board != before
-        return dirty
+    def card(self, card_id: str) -> AutomationCardFacts | None:
+        return next((card for card in self.cards if card.id == card_id), None)
 
 
-# Import at the end to avoid circular imports
-from .core import _KanbanServiceCore  # noqa: E402
+@dataclass(frozen=True, slots=True)
+class MoveCardAction:
+    card_id: str
+    to_column_id: str
+
+
+AutomationAction = MoveCardAction
+AutomationRule = Callable[[Event, AutomationFacts], tuple[AutomationAction, ...]]
+
+
+class AutomationRunner(Protocol):
+    def evaluate(
+        self, event: Event, facts: AutomationFacts
+    ) -> tuple[AutomationAction, ...]: ...
+
+
+class SyncAutomationRunner:
+    def __init__(self, rules: tuple[AutomationRule, ...] = ()) -> None:
+        self._rules = rules
+
+    def evaluate(
+        self, event: Event, facts: AutomationFacts
+    ) -> tuple[AutomationAction, ...]:
+        return tuple(action for rule in self._rules for action in rule(event, facts))

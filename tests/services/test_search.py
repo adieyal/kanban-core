@@ -2,9 +2,8 @@
 
 from datetime import datetime, timezone
 
-import pytest
-
-from kanban import Board, Card, InMemoryCardSearcher
+from kanban.models import Board, Card
+from kanban.services.search import InMemoryCardSearcher
 
 
 class TestInMemoryCardSearcher:
@@ -19,7 +18,7 @@ class TestInMemoryCardSearcher:
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
-        
+
         # Add some test cards
         self.card1 = Card(
             id="card1",
@@ -29,7 +28,7 @@ class TestInMemoryCardSearcher:
             assignee_ids={"user1", "user2"},
             custom_fields={"labels": {"urgent", "frontend"}},
         )
-        
+
         self.card2 = Card(
             id="card2",
             column_id="col1",
@@ -39,7 +38,7 @@ class TestInMemoryCardSearcher:
             custom_fields={"labels": {"backend"}},
             blocked_by={"card3"},
         )
-        
+
         self.card3 = Card(
             id="card3",
             column_id="col2",
@@ -48,20 +47,20 @@ class TestInMemoryCardSearcher:
             assignee_ids={"user3"},
             custom_fields={},
         )
-        
+
         self.board.cards = {
             "card1": self.card1,
             "card2": self.card2,
             "card3": self.card3,
         }
-        
+
         self.searcher = InMemoryCardSearcher()
 
     def test_search_no_filters_returns_all_cards(self):
         """Test search with no filters returns all cards."""
         results = self.searcher.search(self.board)
         assert len(results) == 3
-        assert set(c.id for c in results) == {"card1", "card2", "card3"}
+        assert {c.id for c in results} == {"card1", "card2", "card3"}
 
     def test_search_by_text_in_title(self):
         """Test search by text in card title."""
@@ -108,7 +107,7 @@ class TestInMemoryCardSearcher:
         """Test search by assignee IDs with intersection."""
         results = self.searcher.search(self.board, assignee_ids={"user2"})
         assert len(results) == 2
-        assert set(c.id for c in results) == {"card1", "card2"}
+        assert {c.id for c in results} == {"card1", "card2"}
 
     def test_search_by_is_blocked_true(self):
         """Test search for blocked cards."""
@@ -120,15 +119,12 @@ class TestInMemoryCardSearcher:
         """Test search for non-blocked cards."""
         results = self.searcher.search(self.board, is_blocked=False)
         assert len(results) == 2
-        assert set(c.id for c in results) == {"card1", "card3"}
+        assert {c.id for c in results} == {"card1", "card3"}
 
     def test_search_combined_filters(self):
         """Test search with multiple filters combined."""
         results = self.searcher.search(
-            self.board,
-            text="card",
-            assignee_ids={"user2"},
-            is_blocked=False
+            self.board, text="card", assignee_ids={"user2"}, is_blocked=False
         )
         assert len(results) == 1
         assert results[0].id == "card1"

@@ -2,7 +2,9 @@
 
 import pytest
 
-from kanban import Board, ConcurrencyError, InMemoryKanbanRepository
+from kanban import ConcurrencyError
+from kanban.models import Board
+from kanban_adapters import InMemoryKanbanRepository
 
 
 class TestInMemoryKanbanRepository:
@@ -72,12 +74,23 @@ class TestInMemoryKanbanRepository:
         assert repo.exists("board1")
 
         # Delete and verify doesn't exist
-        repo.delete("board1")
+        repo.delete("board1", expected_version=1)
         assert not repo.exists("board1")
         assert repo.get("board1") is None
 
         # Delete non-existent (should not raise error)
-        repo.delete("nonexistent")
+        repo.delete("nonexistent", expected_version=0)
+
+    def test_delete_rejects_stale_version(self):
+        repo = InMemoryKanbanRepository()
+        board = repo.save(Board(id="board1", name="Test Board"))
+        board.name = "Updated"
+        repo.save(board, expected_version=1)
+
+        with pytest.raises(ConcurrencyError, match="Expected v1, found v2"):
+            repo.delete("board1", expected_version=1)
+
+        assert repo.exists("board1")
 
     def test_list_all(self):
         """Test listing all boards."""
@@ -101,12 +114,12 @@ class TestInMemoryKanbanRepository:
     def test_exists(self):
         """Test checking if board exists."""
         repo = InMemoryKanbanRepository()
-        
+
         assert not repo.exists("board1")
-        
+
         board = Board(id="board1", name="Test Board")
         repo.save(board)
-        
+
         assert repo.exists("board1")
         assert not repo.exists("board2")
 

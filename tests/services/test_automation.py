@@ -6,8 +6,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from kanban import AutomationRule, Board, Event, KanbanError, SyncAutomationRunner
-from kanban.services import AutomationContext, _KanbanServiceCore
+from kanban import KanbanError
+from kanban.events import Event
+from kanban.models import AutomationRule, Board
+from kanban.services import AutomationContext, SyncAutomationRunner, _KanbanServiceCore
 
 
 class TestSyncAutomationRunner:
@@ -43,12 +45,12 @@ class TestSyncAutomationRunner:
         rule = Mock(spec=AutomationRule)
         rule.enabled = False
         rule.trigger.return_value = True
-        
+
         self.board.automation_rules = [rule]
         context = AutomationContext()
-        
+
         result = self.runner.run(self.board, self.event, self.service_core, context)
-        
+
         assert result is False
         rule.action.assert_not_called()
 
@@ -57,12 +59,12 @@ class TestSyncAutomationRunner:
         rule = Mock(spec=AutomationRule)
         rule.enabled = True
         rule.trigger.return_value = False
-        
+
         self.board.automation_rules = [rule]
         context = AutomationContext()
-        
+
         result = self.runner.run(self.board, self.event, self.service_core, context)
-        
+
         assert result is False
         rule.action.assert_not_called()
 
@@ -71,20 +73,20 @@ class TestSyncAutomationRunner:
         rule = Mock(spec=AutomationRule)
         rule.enabled = True
         rule.trigger.return_value = True
-        
+
         self.board.automation_rules = [rule]
         context = AutomationContext()
-        
+
         # Mock snapshot_board to detect changes
-        with patch('kanban.services.automation.snapshot_board') as mock_snapshot:
+        with patch("kanban.services.automation.snapshot_board") as mock_snapshot:
             # First call returns original board state, second call after action returns modified state
             original_board = copy.deepcopy(self.board)
             modified_board = copy.deepcopy(self.board)
             modified_board.name = "Modified"  # Simulate modification
             mock_snapshot.side_effect = [original_board, modified_board]
-            
+
             result = self.runner.run(self.board, self.event, self.service_core, context)
-        
+
         assert result is True
         rule.action.assert_called_once_with(
             self.event, self.board, self.service_core, context
@@ -95,13 +97,13 @@ class TestSyncAutomationRunner:
         rule = Mock(spec=AutomationRule)
         rule.enabled = True
         rule.trigger.return_value = True
-        
+
         self.board.automation_rules = [rule]
         context = AutomationContext()
         context.processed_event_ids.add("event1")
-        
+
         result = self.runner.run(self.board, self.event, self.service_core, context)
-        
+
         assert result is False
         rule.action.assert_not_called()
 
@@ -111,34 +113,50 @@ class TestSyncAutomationRunner:
         # Simulate exceeding the chain limit
         for i in range(SyncAutomationRunner.MAX_CHAIN):
             context.processed_event_ids.add(f"event{i}")
-        
+
+        event = Event(
+            type="card.created",
+            entity_id="card2",
+            entity_type="card",
+            id="new-event",
+            timestamp=datetime.now(timezone.utc),
+        )
+
         with pytest.raises(KanbanError, match="Automation chain limit exceeded"):
-            self.runner.run(self.board, self.event, self.service_core, context)
+            self.runner.run(self.board, event, self.service_core, context)
+
+        assert (
+            self.runner.run(self.board, self.event, self.service_core, context) is False
+        )
 
     def test_run_multiple_rules_executed(self):
         """Test multiple automation rules are executed."""
         rule1 = Mock(spec=AutomationRule)
         rule1.enabled = True
         rule1.trigger.return_value = True
-        
+
         rule2 = Mock(spec=AutomationRule)
         rule2.enabled = True
         rule2.trigger.return_value = True
-        
+
         self.board.automation_rules = [rule1, rule2]
         context = AutomationContext()
-        
-        with patch('kanban.services.automation.snapshot_board') as mock_snapshot:
+
+        with patch("kanban.services.automation.snapshot_board") as mock_snapshot:
             # Simulate changes for both rules
             original_board = copy.deepcopy(self.board)
             modified_board1 = copy.deepcopy(self.board)
             modified_board1.name = "Modified1"
-            modified_board2 = copy.deepcopy(self.board) 
+            modified_board2 = copy.deepcopy(self.board)
             modified_board2.name = "Modified2"
-            mock_snapshot.side_effect = [original_board, modified_board1, modified_board2]
-            
+            mock_snapshot.side_effect = [
+                original_board,
+                modified_board1,
+                modified_board2,
+            ]
+
             result = self.runner.run(self.board, self.event, self.service_core, context)
-        
+
         assert result is True
         rule1.action.assert_called_once()
         rule2.action.assert_called_once()

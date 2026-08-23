@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum, auto
-
-from .models import Board
-
-# ============= PERMISSIONS =============
+from typing import Protocol
 
 
 class Permission(Enum):
-    """Granular permissions"""
-
     VIEW_BOARD = auto()
     EDIT_BOARD = auto()
     DELETE_BOARD = auto()
@@ -25,19 +20,20 @@ class Permission(Enum):
     MANAGE_AUTOMATION = auto()
 
 
-class PermissionChecker(ABC):
-    @abstractmethod
+@dataclass(frozen=True, slots=True)
+class PermissionContext:
+    board_id: str
+    owner_id: str
+    team_ids: frozenset[str]
+
+
+class PermissionPolicy(Protocol):
     def has_permission(
-        self, user_id: str, board: Board, permission: Permission
-    ) -> bool:
-        pass
+        self, user_id: str, context: PermissionContext, permission: Permission
+    ) -> bool: ...
 
 
-class SimplePermissionChecker(PermissionChecker):
-    """
-    Basic checker. Owners have all rights. Team members have a configurable set of rights.
-    """
-
+class SimplePermissionPolicy:
     DEFAULT_MEMBER_PERMISSIONS = {
         Permission.VIEW_BOARD,
         Permission.CREATE_CARD,
@@ -46,21 +42,23 @@ class SimplePermissionChecker(PermissionChecker):
         Permission.DELETE_CARD,
         Permission.CREATE_COLUMN,
         Permission.EDIT_COLUMN,
-        ## FIX 4.1.1: Add destructive column permissions to the default set for completeness.
         Permission.DELETE_COLUMN,
     }
 
-    ## FIX 4.1.2: The set of member permissions is now configurable.
     def __init__(self, member_permissions: set[Permission] | None = None):
-        self.member_permissions = member_permissions or self.DEFAULT_MEMBER_PERMISSIONS
+        self.member_permissions = (
+            set(member_permissions)
+            if member_permissions is not None
+            else set(self.DEFAULT_MEMBER_PERMISSIONS)
+        )
 
     def has_permission(
-        self, user_id: str, board: Board, permission: Permission
+        self, user_id: str, context: PermissionContext, permission: Permission
     ) -> bool:
-        if not board or not user_id:
+        if not user_id:
             return False
-        if board.owner_id == user_id:
+        if context.owner_id == user_id:
             return True
-        if user_id in board.team_ids:
+        if user_id in context.team_ids:
             return permission in self.member_permissions
         return False

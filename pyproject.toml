@@ -4,13 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kanban-core"
-version = "1.0.0"
+version = "2.1.0"
 description = "A comprehensive, extensible kanban board implementation"
 readme = "README.md"
 license = {text = "MIT"}
-authors = [
-    { name = "Red Baron", email = "red@example.com" },
-]
+authors = [{ name = "Adi Eyal" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -35,12 +33,12 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/redbaron/kanban-core"
-Repository = "https://github.com/redbaron/kanban-core"
-Issues = "https://github.com/redbaron/kanban-core/issues"
+Homepage = "https://github.com/adieyal/kanban-core"
+Repository = "https://github.com/adieyal/kanban-core"
+Issues = "https://github.com/adieyal/kanban-core/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kanban"]
+packages = ["src/kanban", "src/kanban_adapters"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -67,7 +65,6 @@ select = [
     "UP",  # pyupgrade
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
-    "TCH", # flake8-type-checking
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
@@ -79,7 +76,7 @@ ignore = [
 "tests/**/*" = ["ARG", "S101"]  # Allow unused args and assert statements in tests
 
 [tool.ruff.lint.isort]
-known-first-party = ["kanban"]
+known-first-party = ["kanban", "kanban_adapters"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -101,6 +98,22 @@ addopts = [
 filterwarnings = [
     "error",
     "ignore::UserWarning",
+]
+
+[tool.importlinter]
+root_packages = ["kanban", "kanban_adapters"]
+
+[[tool.importlinter.contracts]]
+name = "Adapters use only the kanban SPI"
+type = "forbidden"
+source_modules = ["kanban_adapters"]
+forbidden_modules = [
+    "kanban",
+]
+ignore_imports = [
+    "kanban_adapters.events -> kanban.spi",
+    "kanban_adapters.repositories -> kanban.spi",
+    "kanban_adapters.synchronous -> kanban.spi",
 ]
 
 # Coverage configuration
@@ -151,3 +164,8 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_return_any = true
 strict_equality = true
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.13",
+]
