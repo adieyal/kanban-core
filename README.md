@@ -100,6 +100,8 @@ It is an application of the module, not part of the business package. The exampl
 composes `KanbanFacade` with the in-memory repository, synchronous unit of work and
 event bus, then keeps HTTP routes and browser behavior outside Kanban Core.
 
+![Kanban Core demo UI showing boards, cards, drag-and-drop columns, and live business events](kanban-demo-ui/demo-ui-screenshot.png)
+
 Install and run it from the repository root:
 
 ```bash
