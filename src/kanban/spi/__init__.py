@@ -1,7 +1,12 @@
 """Infrastructure and extension contracts for kanban integrations."""
 
 from ..events import Event, EventPublisher
-from ..exceptions import Clock, ConcurrencyError, IDFactory, InvalidPersistenceStateError
+from ..exceptions import (
+    Clock,
+    ConcurrencyError,
+    IDFactory,
+    InvalidPersistenceStateError,
+)
 from ..permissions import PermissionContext, PermissionPolicy
 from ..policies import CardMovePolicyContext, CardPolicyContext, WorkflowPolicy
 from ..repositories import BoardSnapshot, KanbanRepository
