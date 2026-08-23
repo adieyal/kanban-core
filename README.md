@@ -35,7 +35,10 @@ from kanban_adapters import (
 
 repository = InMemoryKanbanRepository()
 events = EventBus()
+
+# Commits the board state and the events produced by the same operation.
 uow = SynchronousKanbanUnitOfWork(repository, events)
+
 kanban = KanbanFacade(repository, uow)
 
 board = kanban.create_board("alice", "Launch")
@@ -49,6 +52,26 @@ kanban.move_card("alice", board.id, card.id, in_progress.id)
 
 `BoardView`, `ColumnView` and `CardView` are immutable observations. Change
 business state only through `KanbanFacade`.
+
+### Why both a repository and a unit of work?
+
+They have different responsibilities:
+
+- `KanbanRepository` **reads and stores board snapshots**.
+- `KanbanUnitOfWork` **commits one business operation**, including both the new
+  board snapshot and the events produced by that operation.
+
+The distinction matters most in production. A database-backed unit of work can save
+the board and append its events to an outbox in one transaction, so you do not end
+up with committed state but a lost event.
+
+A useful shorthand is:
+
+> **Repository reads state. Unit of work commits an operation.**
+
+`SynchronousKanbanUnitOfWork` is the reference implementation for tests and simple
+single-process applications. It saves through the repository and then publishes
+through the supplied event publisher.
 
 ## Documentation
 

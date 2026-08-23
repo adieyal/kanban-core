@@ -37,20 +37,57 @@ stored version differs from the expected version.
 
 ## Repository vs unit of work
 
-The repository stores snapshots. `KanbanUnitOfWork` defines the atomic commit of a
-snapshot and the events caused by the same operation.
+The simplest distinction is:
+
+> **Repository reads state. Unit of work commits an operation.**
+
+Kanban Core needs the repository separately because read paths such as
+`get_board()` and `list_boards()` must load persisted snapshots.
+
+Mutation paths are different. One facade call can produce both:
+
+- a new `BoardSnapshot`;
+- one or more business events.
+
+Those should become durable as one operation. `KanbanUnitOfWork` owns that commit
+boundary:
+
+```text
+facade operation
+      |
+      +--> BoardSnapshot
+      |
+      +--> Events
+             |
+             v
+      KanbanUnitOfWork
+             |
+       one transaction
+        /          \
+       v            v
+  snapshot       outbox
+```
+
+A production implementation might therefore look like:
 
 ```python
 class PostgresKanbanUnitOfWork:
     def save(self, board, events, expected_version=None):
-        # one DB transaction:
-        # 1. save snapshot
-        # 2. append events to outbox
-        # 3. commit
-        ...
+        with database.transaction():
+            saved = repository.save(
+                board,
+                expected_version=expected_version,
+            )
+            outbox.append(events, aggregate_version=saved.version)
+            return saved
 ```
 
-For production, an outbox is preferable to "save, then publish".
+This is why the facade is given both contracts: the repository supports reads; the
+unit of work coordinates commits.
+
+For production, an outbox is preferable to "save, then publish", because a process
+failure between those two operations can otherwise leave committed state with a
+missing event.
 
 ## Composition
 

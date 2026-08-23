@@ -35,6 +35,33 @@ kanban = KanbanFacade(repository, uow)
 The last three are replaceable infrastructure. `KanbanFacade` is the stable
 application entry point.
 
+### Repository vs unit of work
+
+The repository and unit of work are deliberately separate:
+
+```text
+read current state                 commit one business operation
+       |                                      |
+       v                                      v
+KanbanRepository                    KanbanUnitOfWork
+                                              |
+                                   +----------+----------+
+                                   |                     |
+                                   v                     v
+                              BoardSnapshot            Events
+```
+
+The repository is used to load and list Kanban state. The unit of work is used when
+a facade operation must make its resulting state and events durable.
+
+For the in-memory implementation that distinction is small. In a production
+database implementation, the unit of work can save the snapshot and append the
+events to an outbox in the same transaction.
+
+Remember:
+
+> **Repository reads state. Unit of work commits an operation.**
+
 ## Create a board
 
 ```python
@@ -112,12 +139,14 @@ mutate it.
 
 ### `KanbanRepository`
 
-The outbound storage contract. It stores `BoardSnapshot`, not mutable domain
-objects.
+The outbound persistence contract used to read and store `BoardSnapshot` records.
+It answers questions such as "load this board" and "list the boards".
 
 ### `KanbanUnitOfWork`
 
-The atomic commit contract for board state and resulting events.
+The commit contract for a business operation. It makes the resulting board state
+and events durable together. In production this is typically where a database
+transaction and outbox are coordinated.
 
 ### Extension ports
 
