@@ -16,9 +16,9 @@ def _freeze(value: object) -> object:
         return FrozenMap(
             tuple(sorted((str(key), _freeze(item)) for key, item in value.items()))
         )
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return tuple(_freeze(item) for item in value)
-    if isinstance(value, (set, frozenset)):
+    if isinstance(value, set | frozenset):
         return frozenset(_freeze(item) for item in value)
     return value
 
@@ -27,9 +27,9 @@ def _thaw(value: object) -> object:
     if isinstance(value, FrozenMap):
         return {key: _thaw(item) for key, item in value}
     if isinstance(value, tuple):
-        return list(_thaw(item) for item in value)
+        return [_thaw(item) for item in value]
     if isinstance(value, frozenset):
-        return set(_thaw(item) for item in value)
+        return {_thaw(item) for item in value}
     return value
 
 
@@ -84,10 +84,14 @@ def restore_board(snapshot: BoardSnapshot) -> Board:
             if card_id not in board.cards:
                 raise InvalidPersistenceStateError("Column references an unknown card")
             if card_id in memberships:
-                raise InvalidPersistenceStateError("Card belongs to more than one column")
+                raise InvalidPersistenceStateError(
+                    "Card belongs to more than one column"
+                )
             memberships.add(card_id)
     if memberships != set(board.cards):
-        raise InvalidPersistenceStateError("Every card must belong to exactly one column")
+        raise InvalidPersistenceStateError(
+            "Every card must belong to exactly one column"
+        )
 
     positions = [column.position for column in board.columns.values()]
     if len(positions) != len(set(positions)):

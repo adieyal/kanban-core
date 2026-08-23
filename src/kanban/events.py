@@ -90,7 +90,7 @@ class Event:
         def _serialize_value(v: Any) -> Any:
             if isinstance(v, set):
                 return sorted((_serialize_value(item) for item in v), key=repr)
-            if isinstance(v, (list, tuple)):
+            if isinstance(v, list | tuple):
                 return [_serialize_value(item) for item in v]
             if isinstance(v, Mapping):
                 return {key: _serialize_value(value) for key, value in v.items()}
