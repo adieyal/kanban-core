@@ -19,21 +19,6 @@ Your application talks to one public business API, `KanbanFacade`. The module
 owns its business state and invariants; persistence, authorization, search,
 automation and event delivery are supplied from outside at composition time.
 
-```text
-your application
-      |
-      v
-+----------------+
-| KanbanFacade   |  public business API
-+--------+-------+
-         |
-  kanban business module
-         |
-   outbound contracts
-         |
-infrastructure
-```
-
 ![kanban-core system boundary: applications call KanbanFacade, while infrastructure supplies replaceable contracts](imgs/01-framework-kanban-boundary.png)
 
 ## What's included

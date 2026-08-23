@@ -51,6 +51,8 @@ KanbanRepository                    KanbanUnitOfWork
                               BoardSnapshot            Events
 ```
 
+![repository versus unit of work: the repository reads snapshots while the unit of work commits resulting state and events](imgs/02-comparison-repository-unit-of-work.png)
+
 The repository is used to load and list Kanban state. The unit of work is used when
 a facade operation must make its resulting state and events durable.
 

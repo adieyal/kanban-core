@@ -3,26 +3,6 @@
 Kanban Core should own Kanban business truth without owning your framework or
 infrastructure choices.
 
-```text
-                    application
-                        |
-                        v
-                 +--------------+
-                 | KanbanFacade |
-                 +------+-------+
-                        |
-              application/domain
-                        |
-               depends on contracts
-                        |
-        +---------------+---------------+
-        |               |               |
-   repository       policies        automation/search
-        ^               ^               ^
-        |               |               |
-        +------ infrastructure ----------+
-```
-
 ![kanban-core ownership and dependency direction: applications enter through KanbanFacade, while extensions receive outbound contracts and detached contexts](imgs/01-framework-ownership-boundary.png)
 
 ## Why one facade?
