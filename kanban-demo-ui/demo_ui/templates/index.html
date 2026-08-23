@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}{{ board.name }} · Kanban Core{% endblock %}
+{% block body %}
+<div class="app-shell" data-board-id="{{ board.id }}">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">K</div>
+      <div>
+        <strong>Kanban Core</strong>
+        <span>interactive demo</span>
+      </div>
+    </div>
+
+    <nav class="board-nav" aria-label="Boards">
+      <div class="eyebrow">Boards</div>
+      {% for item in boards %}
+      <a class="board-link {% if item.id == board.id %}active{% endif %}"
+         href="/?board_id={{ item.id }}">
+        <span class="board-dot"></span>
+        <span>{{ item.name }}</span>
+        <small>v{{ item.version }}</small>
+      </a>
+      {% endfor %}
+    </nav>
+
+    <form action="/boards" method="post" class="new-board-form">
+      <label for="new-board-name">New board</label>
+      <div class="compact-input">
+        <input id="new-board-name" name="name" placeholder="Board name" required>
+        <button class="icon-button" type="submit" aria-label="Create board">+</button>
+      </div>
+    </form>
+
+    <div class="sidebar-foot">
+      <span class="status-dot"></span>
+      In-memory demo
+      <small>resets on restart</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Board</div>
+        <h1>{{ board.name }}</h1>
+        {% if board.description %}
+        <p>{{ board.description }}</p>
+        {% endif %}
+      </div>
+      <div class="topbar-actions">
+        <button class="button secondary" type="button" data-open-dialog="new-column-dialog">
+          + Column
+        </button>
+        <button class="button primary" type="button" data-new-card>
+          + Card
+        </button>
+      </div>
+    </header>
+
+    {% if error %}
+    <div class="error-banner">
+      <strong>Kanban Core rejected that operation.</strong>
+      <span>{{ error }}</span>
+      <button type="button" aria-label="Dismiss" onclick="this.parentElement.remove()">×</button>
+    </div>
+    {% endif %}
+
+    <section class="content-grid">
+      <div class="board-scroll">
+        <div class="board-columns">
+          {% for column in board.columns %}
+          <section class="column" data-column-id="{{ column.id }}">
+            <header class="column-header">
+              <div>
+                <div class="column-title-row">
+                  <h2>{{ column.name }}</h2>
+                  <span class="count">{{ column.card_ids|length }}</span>
+                  {% if column.wip_limit %}
+                  <span class="wip {% if column.card_ids|length >= column.wip_limit %}at-limit{% endif %}">
+                    WIP {{ column.card_ids|length }}/{{ column.wip_limit }}
+                  </span>
+                  {% endif %}
+                </div>
+              </div>
+              <button
+                class="bare-button"
+                type="button"
+                aria-label="Column settings"
+                data-column-settings
+                data-column-id="{{ column.id }}"
+                data-column-name="{{ column.name|e }}"
+                data-column-wip="{{ column.wip_limit if column.wip_limit is not none else '' }}"
+              >•••</button>
+            </header>
+
+            <div class="card-list" data-column-id="{{ column.id }}">
+              {% if not column.card_ids %}
+              <div class="drop-placeholder" data-drop-placeholder>
+                Drop a card here
+              </div>
+              {% endif %}
+              {% for card_id in column.card_ids %}
+                {% set card = board.card(card_id) %}
+                {% if card %}
+                <article
+                  class="card {% if card.archived %}archived{% endif %}"
+                  data-card
+                  data-card-id="{{ card.id }}"
+                  data-title="{{ card.title|e }}"
+                  data-description="{{ card.description|e }}"
+                  data-assignees="{{ card.assignee_ids|sort|join(', ')|e }}"
+                  data-size="{{ card.size if card.size is not none else '' }}"
+                  data-archived="{{ 'true' if card.archived else 'false' }}"
+                  draggable="true"
+                  tabindex="0"
+                >
+                  <div class="drag-handle" title="Drag card">⠿</div>
+                  <div class="card-body">
+                    <div class="card-title">{{ card.title }}</div>
+                    {% if card.description %}
+                    <p>{{ card.description }}</p>
+                    {% endif %}
+                    <div class="card-meta">
+                      {% if card.assignee_ids %}
+                      <span class="avatar-stack">
+                        {% for assignee in card.assignee_ids|sort %}
+                        <span class="avatar" title="{{ assignee }}">{{ assignee[:1]|upper }}</span>
+                        {% endfor %}
+                      </span>
+                      {% endif %}
+                      {% if card.size is not none %}
+                      <span class="pill">◈ {{ card.size }}</span>
+                      {% endif %}
+                      {% if card.blocked_by %}
+                      <span class="pill danger" title="Blocked by {{ card.blocked_by|length }} card(s)">
+                        ⛔ blocked
+                      </span>
+                      {% endif %}
+                      {% if card.archived %}
+                      <span class="pill">archived</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </article>
+                {% endif %}
+              {% endfor %}
+            </div>
+
+            <button
+              class="add-card-link"
+              type="button"
+              data-new-card
+              data-column-id="{{ column.id }}"
+            >+ Add card</button>
+          </section>
+          {% endfor %}
+
+          <button class="add-column-tile" type="button" data-open-dialog="new-column-dialog">
+            <span>+</span>
+            Add another column
+          </button>
+        </div>
+      </div>
+
+      <aside class="events-panel">
+        <div class="events-heading">
+          <div>
+            <div class="eyebrow">Live</div>
+            <h2>Business events</h2>
+          </div>
+          <span class="pulse"></span>
+        </div>
+        <p class="events-help">
+          These are events emitted by the same facade operations driving the board.
+        </p>
+        <div
+          id="event-list"
+          hx-get="/fragments/events"
+          hx-trigger="every 3s, refresh"
+          hx-swap="innerHTML"
+        >
+          {% include "_events.html" %}
+        </div>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<dialog id="new-column-dialog" class="modal">
+  <form action="/boards/{{ board.id }}/columns" method="post">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow">Board structure</div>
+        <h2>Add column</h2>
+      </div>
+      <button type="button" class="close-button" data-close-dialog>×</button>
+    </div>
+    <label>
+      Column name
+      <input name="name" placeholder="e.g. Ready for review" required autofocus>
+    </label>
+    <div class="modal-actions">
+      <button type="button" class="button secondary" data-close-dialog>Cancel</button>
+      <button class="button primary" type="submit">Add column</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="column-dialog" class="modal">
+  <form id="column-form" method="post">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow">Column</div>
+        <h2>Column settings</h2>
+      </div>
+      <button type="button" class="close-button" data-close-dialog>×</button>
+    </div>
+    <label>
+      Name
+      <input id="column-name" name="name" required>
+    </label>
+    <label>
+      WIP limit
+      <input id="column-wip" name="wip_limit" type="number" min="1" placeholder="No limit">
+      <small>Leave blank for no limit.</small>
+    </label>
+    <div class="danger-zone">
+      <strong>Delete column</strong>
+      <span>Only empty columns can be deleted.</span>
+      <button id="delete-column-button" class="text-danger" type="button">Delete</button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="button secondary" data-close-dialog>Cancel</button>
+      <button class="button primary" type="submit">Save</button>
+    </div>
+  </form>
+  <form id="delete-column-form" method="post" hidden></form>
+</dialog>
+
+<dialog id="card-dialog" class="modal card-modal">
+  <form id="card-form" method="post">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow" id="card-dialog-eyebrow">Card</div>
+        <h2 id="card-dialog-title">Add card</h2>
+      </div>
+      <button type="button" class="close-button" data-close-dialog>×</button>
+    </div>
+
+    <input id="card-column-id" type="hidden" name="column_id">
+
+    <label>
+      Title
+      <input id="card-title" name="title" required>
+    </label>
+    <label>
+      Description
+      <textarea id="card-description" name="description" rows="4"></textarea>
+    </label>
+
+    <div class="two-up">
+      <label>
+        Assignees
+        <input id="card-assignees" name="assignees" placeholder="Maya, Sam">
+        <small>Comma separated for the demo.</small>
+      </label>
+      <label>
+        Size
+        <input id="card-size" name="size" type="number" min="0" step="0.5">
+      </label>
+    </div>
+
+    <label id="archived-row" class="checkbox-row">
+      <input id="card-archived" name="archived" type="checkbox">
+      Archived
+    </label>
+
+    <section id="dependency-section" class="dependency-section">
+      <div class="section-label">Dependencies</div>
+      <div id="blocked-by-list"></div>
+      <div class="compact-input">
+        <select id="blocking-card-select" name="blocking_card_id">
+          <option value="">Choose a blocking card…</option>
+          {% for other in board.cards %}
+          <option value="{{ other.id }}">{{ other.title }}</option>
+          {% endfor %}
+        </select>
+        <button id="add-blocker-button" class="button secondary" type="button">Block by</button>
+      </div>
+    </section>
+
+    <div class="modal-actions">
+      <button id="delete-card-button" class="text-danger" type="button">Delete card</button>
+      <div class="modal-actions-right">
+        <button type="button" class="button secondary" data-close-dialog>Cancel</button>
+        <button class="button primary" type="submit">Save</button>
+      </div>
+    </div>
+  </form>
+  <form id="delete-card-form" method="post" hidden></form>
+  <form id="block-card-form" method="post" hidden>
+    <input id="block-card-id" name="blocking_card_id">
+  </form>
+  <form id="unblock-card-form" method="post" hidden>
+    <input id="unblock-card-id" name="blocking_card_id">
+  </form>
+</dialog>
+
+<script id="board-data" type="application/json">
+{
+  "boardId": {{ board.id|tojson }},
+  "cards": {
+    {% for card in board.cards %}
+    {{ card.id|tojson }}: {
+      "id": {{ card.id|tojson }},
+      "title": {{ card.title|tojson }},
+      "blockedBy": {{ card.blocked_by|list|tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  }
+}
+</script>
+{% endblock %}

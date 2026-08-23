@@ -1,0 +1,11 @@
+README.md
+demo_ui/__init__.py
+demo_ui/app.py
+demo_ui/static/app.css
+demo_ui/static/app.js
+demo_ui/templates/_events.html
+demo_ui/templates/base.html
+demo_ui/templates/index.html
+requirements.txt
+run_demo.py
+MANIFEST.txt
