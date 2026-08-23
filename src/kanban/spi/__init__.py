@@ -10,12 +10,24 @@ from ..exceptions import (
 from ..permissions import PermissionContext, PermissionPolicy
 from ..policies import CardMovePolicyContext, CardPolicyContext, WorkflowPolicy
 from ..repositories import BoardSnapshot, KanbanRepository
-from ..services import AutomationRunner, CardSearcher
+from ..services import CardSearcher
 from ..services.search import SearchCard, SearchContext
 from ..unit_of_work import KanbanUnitOfWork
+from .automation import (
+    AutomationAction,
+    AutomationCardFacts,
+    AutomationColumnFacts,
+    AutomationFacts,
+    AutomationRunner,
+    MoveCardAction,
+)
 
 __all__ = [
     "AutomationRunner",
+    "AutomationAction",
+    "AutomationCardFacts",
+    "AutomationColumnFacts",
+    "AutomationFacts",
     "BoardSnapshot",
     "CardMovePolicyContext",
     "CardPolicyContext",
@@ -30,6 +42,7 @@ __all__ = [
     "KanbanUnitOfWork",
     "PermissionContext",
     "PermissionPolicy",
+    "MoveCardAction",
     "SearchCard",
     "SearchContext",
     "WorkflowPolicy",

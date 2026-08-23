@@ -10,7 +10,6 @@ from .permissions import Permission, PermissionPolicy, SimplePermissionPolicy
 from .policies import WorkflowPolicy
 from .repositories import KanbanRepository, restore_board
 from .services import (
-    AutomationRunner,
     BoardAdminService,
     CardSearcher,
     CardWorkflowService,
@@ -18,6 +17,7 @@ from .services import (
     SyncAutomationRunner,
     _KanbanServiceCore,
 )
+from .spi.automation import AutomationRunner
 from .unit_of_work import KanbanUnitOfWork
 
 

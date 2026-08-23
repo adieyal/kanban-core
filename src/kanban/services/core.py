@@ -24,14 +24,14 @@ from ..policies import (
     WorkflowPolicy,
 )
 from ..repositories import KanbanRepository, restore_board, snapshot_board
-from ..unit_of_work import KanbanUnitOfWork
-from .automation import (
+from ..spi.automation import (
     AutomationCardFacts,
     AutomationColumnFacts,
     AutomationFacts,
     AutomationRunner,
     MoveCardAction,
 )
+from ..unit_of_work import KanbanUnitOfWork
 from .search import CardSearcher, SearchCard, SearchContext
 
 T = TypeVar("T")
