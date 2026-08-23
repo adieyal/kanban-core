@@ -23,6 +23,8 @@ infrastructure choices.
         +------ infrastructure ----------+
 ```
 
+![kanban-core ownership and dependency direction: applications enter through KanbanFacade, while extensions receive outbound contracts and detached contexts](imgs/01-framework-ownership-boundary.png)
+
 ## Why one facade?
 
 A narrow facade gives callers one supported way to ask the business module to do

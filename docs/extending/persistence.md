@@ -68,6 +68,8 @@ facade operation
   snapshot       outbox
 ```
 
+![atomic persistence flow: a facade operation commits domain state and an outbox record together](imgs/01-flowchart-atomic-outbox-commit.png)
+
 A production implementation might therefore look like:
 
 ```python

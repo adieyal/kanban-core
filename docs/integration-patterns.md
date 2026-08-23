@@ -46,3 +46,14 @@ def main():
 
 The framework knows how to compose Kanban Core. Kanban Core does not know which
 framework hosts it.
+
+## Included demo
+
+The repository's [`kanban-demo-ui`](../kanban-demo-ui/) is a concrete FastAPI
+composition example. Its routes call `KanbanFacade`; the in-memory repository,
+synchronous unit of work and event bus are supplied at the application edge.
+
+The browser's native drag-and-drop interaction is only presentation behavior. It
+requests a move from the server, where Kanban Core applies the normal WIP, workflow,
+ordering, transaction and event rules. This keeps the example useful without making
+the UI a second owner of business behavior.

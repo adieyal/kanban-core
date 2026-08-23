@@ -4,9 +4,20 @@
 
 A framework-independent Kanban business module for Python 3.10+.
 
-Your application talks to one public business API, `KanbanFacade`. The module owns
-its business state and invariants; persistence, authorization, search, automation
-and event delivery are supplied from outside at composition time.
+**This is not a Kanban board app.** It's the engine underneath one — boards,
+columns, cards, moves, workflow rules, permissions, automation and events —
+with no UI and no database of its own. You supply persistence, authorization
+and an interface; kanban-core guarantees the board behaves correctly
+underneath them.
+
+Board mechanics — moving cards, enforcing WIP limits, tracking state — get
+rewritten in nearly every Kanban tool because it's hard to find an
+implementation with no UI or database bolted on. kanban-core is that missing
+piece.
+
+Your application talks to one public business API, `KanbanFacade`. The module
+owns its business state and invariants; persistence, authorization, search,
+automation and event delivery are supplied from outside at composition time.
 
 ```text
 your application
@@ -20,7 +31,27 @@ your application
          |
    outbound contracts
          |
-   infrastructure
+infrastructure
+```
+
+![kanban-core system boundary: applications call KanbanFacade, while infrastructure supplies replaceable contracts](imgs/01-framework-kanban-boundary.png)
+
+## What's included
+
+- Boards, columns and cards, with move validation, WIP limits, card ordering
+  and dependency-cycle checks
+- Configurable workflow policies for deployment-specific rules
+- Permission checks via an injected policy — not hardcoded into the module
+- Search over cards via a pluggable searcher
+- Automation that reacts to events and proposes actions
+- An event system for audit trails, outboxes and integrations
+- Deterministic testing support via injected clock and ID factory
+- Zero dependencies outside the Python standard library
+
+## Installation
+
+```bash
+pip install kanban-core
 ```
 
 ## Quick example
@@ -53,6 +84,10 @@ kanban.move_card("alice", board.id, card.id, in_progress.id)
 `BoardView`, `ColumnView` and `CardView` are immutable observations. Change
 business state only through `KanbanFacade`.
 
+Swap `InMemoryKanbanRepository` for a Postgres- or Django-backed
+implementation and nothing above this line changes — that boundary is the
+whole point of the module. See [Extending Kanban Core](docs/extensibility.md).
+
 ### Why both a repository and a unit of work?
 
 They have different responsibilities:
@@ -72,6 +107,26 @@ A useful shorthand is:
 `SynchronousKanbanUnitOfWork` is the reference implementation for tests and simple
 single-process applications. It saves through the repository and then publishes
 through the supplied event publisher.
+
+## Demo UI
+
+The repository includes a small FastAPI example in [`kanban-demo-ui`](kanban-demo-ui/).
+It is an application of the module, not part of the business package. The example
+composes `KanbanFacade` with the in-memory repository, synchronous unit of work and
+event bus, then keeps HTTP routes and browser behavior outside Kanban Core.
+
+Install and run it from the repository root:
+
+```bash
+python -m pip install -e .
+python -m pip install -r kanban-demo-ui/requirements.txt
+python kanban-demo-ui/run_demo.py
+```
+
+The browser uses native HTML drag-and-drop. It updates the card list optimistically,
+then sends the requested move through the facade; the server remains authoritative
+for WIP limits, workflow rules, ordering and event generation. The demo deliberately
+uses in-memory state and has no authentication, CSRF protection or durable outbox.
 
 ## Documentation
 
