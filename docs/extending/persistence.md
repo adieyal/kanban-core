@@ -52,22 +52,6 @@ Mutation paths are different. One facade call can produce both:
 Those should become durable as one operation. `KanbanUnitOfWork` owns that commit
 boundary:
 
-```text
-facade operation
-      |
-      +--> BoardSnapshot
-      |
-      +--> Events
-             |
-             v
-      KanbanUnitOfWork
-             |
-       one transaction
-        /          \
-       v            v
-  snapshot       outbox
-```
-
 ![atomic persistence flow: a facade operation commits domain state and an outbox record together](imgs/01-flowchart-atomic-outbox-commit.png)
 
 A production implementation might therefore look like:

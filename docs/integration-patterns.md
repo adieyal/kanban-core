@@ -53,6 +53,8 @@ The repository's [`kanban-demo-ui`](../kanban-demo-ui/) is a concrete FastAPI
 composition example. Its routes call `KanbanFacade`; the in-memory repository,
 synchronous unit of work and event bus are supplied at the application edge.
 
+![FastAPI composition: routes call KanbanFacade, which is wired to replaceable application-provided adapters](imgs/03-framework-fastapi-composition.png)
+
 The browser's native drag-and-drop interaction is only presentation behavior. It
 requests a move from the server, where Kanban Core applies the normal WIP, workflow,
 ordering, transaction and event rules. This keeps the example useful without making
