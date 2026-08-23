@@ -26,3 +26,11 @@ repos:
     hooks:
       - id: mypy
         args: [--ignore-missing-imports]
+
+  - repo: local
+    hooks:
+      - id: import-linter
+        name: Check import boundaries
+        entry: uv run lint-imports
+        language: system
+        pass_filenames: false
