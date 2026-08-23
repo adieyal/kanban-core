@@ -5,16 +5,7 @@ A small, build-free demo application for `kanban-core`.
 It is deliberately **not** part of the business module. The demo uses the same public
 composition style as any other application:
 
-```text
-FastAPI routes
-      |
-      v
-KanbanFacade
-      |
-      +--> InMemoryKanbanRepository
-      +--> SynchronousKanbanUnitOfWork
-      +--> EventBus
-```
+![FastAPI composition: routes call KanbanFacade, which is wired to replaceable application-provided adapters](../docs/imgs/03-framework-fastapi-composition.png)
 
 The UI contains no copy of Kanban business rules. Dragging a card calls
 `KanbanFacade.move_card()`, WIP limits are enforced by Kanban Core, and failures are
