@@ -60,7 +60,7 @@ remain outside core. No built-in service classes or generic scheduling engine.
 | Packet | Status | Evidence |
 | --- | --- | --- |
 | 1. Import #8/#9 and unknown time #12 | PASS | 50 focused tests; reviewer 79 tests; 100 cards median 28.778 ms, p95 30.678 ms over 20 runs |
-| 2. Policy facts #10/#11 | Pending | Pending |
+| 2. Policy facts #10/#11 | PASS | 27 focused tests; independent review 42 tests; Ruff/MyPy pass |
 | 4. Attribute patch and docs #14/#15 | Pending | Pending |
 | 3. Rich age observations #12 | Pending | Pending |
 

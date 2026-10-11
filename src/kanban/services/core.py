@@ -23,6 +23,7 @@ from ..policies import (
     AllowAllWorkflowPolicy,
     CardMovePolicyContext,
     CardPolicyContext,
+    ColumnPolicyContext,
     WorkflowPolicy,
 )
 from ..repositories import KanbanRepository, restore_board, snapshot_board
@@ -121,6 +122,16 @@ class _KanbanServiceCore:
             blocked_reason=card.blocked_reason,
             blocked_at=card.blocked_at,
             is_blocked=card.is_blocked(),
+            columns=tuple(
+                ColumnPolicyContext(
+                    column.id,
+                    column.name,
+                    len(column.card_ids),
+                    column.policy.wip_limit,
+                    column.policy.max_age,
+                )
+                for column in board.get_columns_ordered()
+            ),
         )
 
     def automation_facts(

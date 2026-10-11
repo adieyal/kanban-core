@@ -4,10 +4,21 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from .attributes import freeze_attributes
+
+
+@dataclass(frozen=True, slots=True)
+class ColumnPolicyContext:
+    """Column observations from the board participating in this operation."""
+
+    id: str
+    name: str
+    card_count: int
+    wip_limit: int | None
+    max_age: timedelta | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,9 +40,14 @@ class CardPolicyContext:
     is_blocked: bool = False
 
     attributes: Mapping[str, object] = field(default_factory=dict)
+    columns: tuple[ColumnPolicyContext, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attributes", freeze_attributes(self.attributes))
+        object.__setattr__(self, "columns", tuple(self.columns))
+
+    def column(self, column_id: str) -> ColumnPolicyContext | None:
+        return next((column for column in self.columns if column.id == column_id), None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +58,18 @@ class CardMovePolicyContext:
     from_column_id: str
     to_column_id: str
     position: int
+
+    @property
+    def columns(self) -> tuple[ColumnPolicyContext, ...]:
+        return self.card.columns
+
+    @property
+    def from_column(self) -> ColumnPolicyContext | None:
+        return self.card.column(self.from_column_id)
+
+    @property
+    def to_column(self) -> ColumnPolicyContext | None:
+        return self.card.column(self.to_column_id)
 
 
 class WorkflowPolicy(Protocol):

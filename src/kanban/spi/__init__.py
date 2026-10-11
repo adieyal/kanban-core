@@ -8,7 +8,12 @@ from ..exceptions import (
     InvalidPersistenceStateError,
 )
 from ..permissions import PermissionContext, PermissionPolicy
-from ..policies import CardMovePolicyContext, CardPolicyContext, WorkflowPolicy
+from ..policies import (
+    CardMovePolicyContext,
+    CardPolicyContext,
+    ColumnPolicyContext,
+    WorkflowPolicy,
+)
 from ..repositories import BoardSnapshot, KanbanRepository
 from ..services import CardSearcher
 from ..services.search import SearchCard, SearchContext
@@ -32,6 +37,7 @@ __all__ = [
     "BoardSnapshot",
     "CardMovePolicyContext",
     "CardPolicyContext",
+    "ColumnPolicyContext",
     "CardSearcher",
     "Clock",
     "ConcurrencyError",
