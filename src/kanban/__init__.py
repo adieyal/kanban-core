@@ -16,11 +16,15 @@ from .facade import (
     KanbanFacade,
     TickResult,
 )
+from .imports import BoardImport, CardImport, ColumnImport
 from .models import WipGroup
 
 __version__ = "2.2.0"
 
 __all__ = [
+    "BoardImport",
+    "CardImport",
+    "ColumnImport",
     "AgingCardsView",
     "BoardView",
     "WipGroup",

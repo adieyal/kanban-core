@@ -43,3 +43,28 @@ use one timestamp for block state and event; validate restored lifecycle timesta
 calculate elapsed ages and order instants in UTC across daylight-saving changes.
 Original probes and regression tests pass after correction. No unresolved findings.
 Work is local on `feature/queue-controls`; no release, push, or issue closure performed.
+
+# Portable board integration
+
+Source: scoped issues #8–#12, #14–#15 and the user's follow-up contracts.
+Prior 2.2.0 implementation is now merged locally into master. Issue #13 is closed
+as out of scope. This follow-up runs on `feature/portable-board-integration`.
+
+Change: historical import, policy column/occupancy observations, atomic attribute
+patching, blocking documentation, and richer age observations.
+Preserve: ordinary creation timestamps, replacement update semantics, immutable
+observations, optimistic concurrency and atomic reactions.
+Scope: host store translation, worker scheduling, NHW thresholds and bypass rules
+remain outside core. No built-in service classes or generic scheduling engine.
+
+| Packet | Status | Evidence |
+| --- | --- | --- |
+| 1. Import #8/#9 and unknown time #12 | PASS | 50 focused tests; reviewer 79 tests; 100 cards median 28.778 ms, p95 30.678 ms over 20 runs |
+| 2. Policy facts #10/#11 | Pending | Pending |
+| 4. Attribute patch and docs #14/#15 | Pending | Pending |
+| 3. Rich age observations #12 | Pending | Pending |
+
+Benchmark host: Intel Core Ultra 7 165U, Python 3.13.3, Linux x86_64.
+Import is create-only, checked with IMPORT_BOARD permission and expected version
+zero. It emits one import audit event without replaying historical commands.
+Historical overcapacity is retained; subsequent entries enforce WIP limits.

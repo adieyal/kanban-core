@@ -18,6 +18,7 @@ class Permission(Enum):
     DELETE_COLUMN = auto()
     MANAGE_USERS = auto()
     MANAGE_AUTOMATION = auto()
+    IMPORT_BOARD = auto()
 
 
 @dataclass(frozen=True, slots=True)

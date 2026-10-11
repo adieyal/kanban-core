@@ -15,6 +15,7 @@ from .exceptions import (
     utc_clock,
     uuid4_factory,
 )
+from .imports import BoardImport
 from .models import Board, Card, Column, WipGroup
 from .permissions import Permission, PermissionPolicy, SimplePermissionPolicy
 from .policies import WorkflowPolicy
@@ -27,6 +28,7 @@ from .services import (
     SyncAutomationRunner,
     _KanbanServiceCore,
 )
+from .services.board_import import BoardImportService
 from .services.core import _TickBatch
 from .spi.automation import AutomationRunner
 from .unit_of_work import KanbanUnitOfWork
@@ -187,6 +189,10 @@ class KanbanFacade:
         self._core = core
         self._admin = BoardAdminService(core)
         self._cards = CardWorkflowService(core)
+        self._imports = BoardImportService(core)
+
+    def import_board(self, user_id: str, data: BoardImport) -> BoardView:
+        return _board_view(self._imports.import_board(user_id, data))
 
     def create_board(
         self, user_id: str, name: str, columns: list[str] | None = None

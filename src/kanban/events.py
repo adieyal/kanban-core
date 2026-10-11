@@ -33,6 +33,7 @@ builtin_events = {
     "board.updated": "Board updated",
     "board.deleted": "Board deleted",
     "board.tick": "Scheduled board automation evaluated",
+    "board.imported": "Historical board state imported",
     "column.created": "Column created",
     "column.updated": "Column updated",
     "column.deleted": "Column deleted",
