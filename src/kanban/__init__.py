@@ -8,7 +8,7 @@ from .exceptions import (
     PermissionError,
     ValidationError,
 )
-from .facade import BoardView, CardView, ColumnView, KanbanFacade
+from .facade import BoardView, CardView, ColumnView, KanbanFacade, TickResult
 
 __version__ = "2.1.0"
 
@@ -22,5 +22,6 @@ __all__ = [
     "KanbanFacade",
     "NotFoundError",
     "PermissionError",
+    "TickResult",
     "ValidationError",
 ]

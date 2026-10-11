@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from .exceptions import Clock, IDFactory, utc_clock, uuid4_factory
+from .events import Event
+from .exceptions import Clock, IDFactory, ValidationError, utc_clock, uuid4_factory
 from .models import Board, Card, Column
 from .permissions import Permission, PermissionPolicy, SimplePermissionPolicy
 from .policies import WorkflowPolicy
@@ -17,8 +18,17 @@ from .services import (
     SyncAutomationRunner,
     _KanbanServiceCore,
 )
+from .services.core import _TickBatch
 from .spi.automation import AutomationRunner
 from .unit_of_work import KanbanUnitOfWork
+
+
+@dataclass(frozen=True, slots=True)
+class TickResult:
+    """Initial tick actions processed or deferred by the requested batch limit."""
+
+    processed_card_ids: tuple[str, ...]
+    deferred_card_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,3 +270,28 @@ class KanbanFacade:
             self._core.search_context(board), **filters
         )
         return [_card_view(board.cards[card_id], board) for card_id in card_ids]
+
+    def tick(
+        self, user_id: str, board_id: str, *, max_actions: int = 100
+    ) -> TickResult:
+        """Run a bounded batch of scheduled rules as one business operation."""
+        if type(max_actions) is not int or max_actions <= 0:
+            raise ValidationError("Tick max_actions must be a positive integer")
+        batch = _TickBatch(max_actions)
+
+        def action(board: Board) -> tuple[None, list[Event]]:
+            event = self._core.event_factory.create(
+                "board.tick", board.id, "board", user_id, {}
+            )
+            return None, [event]
+
+        self._core._execute_transaction(
+            board_id,
+            user_id,
+            Permission.MANAGE_AUTOMATION,
+            action,
+            tick_batch=batch,
+        )
+        return TickResult(
+            tuple(batch.processed_card_ids), tuple(batch.deferred_card_ids)
+        )

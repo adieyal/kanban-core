@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import TypeVar
 
 from ..events import Event
@@ -36,6 +37,13 @@ from .search import CardSearcher, SearchCard, SearchContext
 
 T = TypeVar("T")
 _MAX_AUTOMATION_CHAIN = 25
+
+
+@dataclass
+class _TickBatch:
+    limit: int
+    processed_card_ids: list[str] = field(default_factory=list)
+    deferred_card_ids: list[str] = field(default_factory=list)
 
 
 class EventFactory:
@@ -103,7 +111,9 @@ class _KanbanServiceCore:
             archived=card.archived,
         )
 
-    def automation_facts(self, board: Board) -> AutomationFacts:
+    def automation_facts(
+        self, board: Board, *, now: datetime | None = None
+    ) -> AutomationFacts:
         return AutomationFacts(
             cards=tuple(
                 AutomationCardFacts(
@@ -119,7 +129,7 @@ class _KanbanServiceCore:
                 AutomationColumnFacts(column.id, column.name)
                 for column in board.get_columns_ordered()
             ),
-            now=self.clock(),
+            now=now if now is not None else self.clock(),
         )
 
     @staticmethod
@@ -172,6 +182,8 @@ class _KanbanServiceCore:
         user_id: str,
         permission: Permission,
         action: Callable[[Board], tuple[T, list[Event]]],
+        *,
+        tick_batch: _TickBatch | None = None,
     ) -> tuple[T, Board]:
         board = self.get_board_and_check_permission(board_id, user_id, permission)
         original_version = board.version
@@ -189,14 +201,29 @@ class _KanbanServiceCore:
         ]
 
         event_index = 0
+        chain_roots = [0] * len(events)
+        chain_counts: dict[int, int] = {}
+        tick_time = events[0].timestamp if tick_batch is not None else None
         while event_index < len(events):
-            if event_index >= _MAX_AUTOMATION_CHAIN:
+            root = chain_roots[event_index]
+            chain_counts[root] = chain_counts.get(root, 0) + 1
+            if chain_counts[root] > _MAX_AUTOMATION_CHAIN:
                 raise ValidationError("Automation chain limit exceeded")
             trigger = events[event_index]
             event_index += 1
-            for requested in self.automation_runner.evaluate(
-                trigger, self.automation_facts(board)
+            for action_index, requested in enumerate(
+                self.automation_runner.evaluate(
+                    trigger, self.automation_facts(board, now=tick_time)
+                )
             ):
+                is_tick_trigger = (
+                    tick_batch is not None and trigger.type == "board.tick"
+                )
+                if tick_batch is not None and is_tick_trigger:
+                    if action_index >= tick_batch.limit:
+                        tick_batch.deferred_card_ids.append(requested.card_id)
+                        continue
+                    tick_batch.processed_card_ids.append(requested.card_id)
                 generated = self._apply_automation_action(board, requested, user_id)
                 if generated is None:
                     continue
@@ -210,6 +237,7 @@ class _KanbanServiceCore:
                         causation_id=generated.causation_id or trigger.id,
                     )
                 )
+                chain_roots.append(len(events) - 1 if is_tick_trigger else root)
 
         if dirty:
             saved = self.unit_of_work.save(
