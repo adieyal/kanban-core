@@ -76,6 +76,21 @@ def restore_board(snapshot: BoardSnapshot) -> Board:
     }
     board.cards = {key: Card(**value) for key, value in cards.items()}
 
+    for card in board.cards.values():
+        if card.blocked_reason is None:
+            if card.blocked_at is not None:
+                raise InvalidPersistenceStateError(
+                    "Unblocked card has an external block timestamp"
+                )
+        elif (
+            not isinstance(card.blocked_reason, str)
+            or not card.blocked_reason.strip()
+            or card.blocked_at is None
+            or card.blocked_at.tzinfo is None
+            or card.blocked_at.utcoffset() is None
+        ):
+            raise InvalidPersistenceStateError("Invalid external block state")
+
     memberships: set[str] = set()
     for column in board.columns.values():
         if column.board_id != board.id:

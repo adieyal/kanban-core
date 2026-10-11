@@ -22,6 +22,10 @@ class AutomationCardFacts:
     created_at: datetime | None = None
     entered_column_at: datetime | None = None
 
+    blocked_reason: str | None = None
+    blocked_at: datetime | None = None
+    is_blocked: bool = False
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "attributes", freeze_attributes(self.attributes))
 
@@ -49,7 +53,13 @@ class MoveCardAction:
     to_column_id: str
 
 
-AutomationAction: TypeAlias = MoveCardAction
+@dataclass(frozen=True, slots=True)
+class BlockCardAction:
+    card_id: str
+    reason: str
+
+
+AutomationAction: TypeAlias = MoveCardAction | BlockCardAction
 
 
 class AutomationRunner(Protocol):

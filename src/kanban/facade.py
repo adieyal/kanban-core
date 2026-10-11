@@ -53,10 +53,12 @@ class CardView:
     due_date: datetime | None
     size: float | None
     archived: bool
+    attributes: Mapping[str, object] = field(default_factory=dict)
     created_at: datetime | None = None
     entered_column_at: datetime | None = None
-
-    attributes: Mapping[str, object] = field(default_factory=dict)
+    blocked_reason: str | None = None
+    blocked_at: datetime | None = None
+    is_blocked: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attributes", freeze_attributes(self.attributes))
@@ -118,6 +120,9 @@ def _card_view(card: Card, board: Board) -> CardView:
         attributes=card.attributes,
         created_at=card.created_at,
         entered_column_at=card.entered_column_at,
+        blocked_reason=card.blocked_reason,
+        blocked_at=card.blocked_at,
+        is_blocked=card.is_blocked(),
     )
 
 
@@ -288,6 +293,14 @@ class KanbanFacade:
         self._cards.unblock_card_dependency(
             board_id, blocking_card_id, card_to_unblock_id, user_id
         )
+
+    def block_card_external(
+        self, user_id: str, board_id: str, card_id: str, reason: str
+    ) -> None:
+        self._cards.set_external_block(board_id, card_id, user_id, reason)
+
+    def unblock_card_external(self, user_id: str, board_id: str, card_id: str) -> None:
+        self._cards.set_external_block(board_id, card_id, user_id, None)
 
     def search_cards(
         self, user_id: str, board_id: str, **filters: Any

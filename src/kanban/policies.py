@@ -24,6 +24,9 @@ class CardPolicyContext:
     due_date: datetime | None
     size: float | None
     archived: bool
+    blocked_reason: str | None = None
+    blocked_at: datetime | None = None
+    is_blocked: bool = False
 
     attributes: Mapping[str, object] = field(default_factory=dict)
 

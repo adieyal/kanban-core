@@ -43,6 +43,8 @@ builtin_events = {
     "card.moved": "Card moved",
     "card.blocked": "Card blocked",
     "card.unblocked": "Card unblocked",
+    "card.externally_blocked": "Card externally blocked",
+    "card.externally_unblocked": "Card externally unblocked",
     "wip.limit.reached": "WIP limit reached",
     "workflow.transition": "Workflow transition",
     "automation.triggered": "Automation triggered",

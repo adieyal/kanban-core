@@ -19,6 +19,7 @@ from .automation import (
     AutomationColumnFacts,
     AutomationFacts,
     AutomationRunner,
+    BlockCardAction,
     MoveCardAction,
 )
 
@@ -43,6 +44,7 @@ __all__ = [
     "PermissionContext",
     "PermissionPolicy",
     "MoveCardAction",
+    "BlockCardAction",
     "SearchCard",
     "SearchContext",
     "WorkflowPolicy",

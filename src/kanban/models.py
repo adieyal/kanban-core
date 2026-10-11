@@ -30,8 +30,11 @@ class Card:
     def __post_init__(self) -> None:
         self.attributes = copy_attributes(self.attributes)
 
+    blocked_reason: str | None = None
+    blocked_at: datetime | None = None
+
     def is_blocked(self) -> bool:
-        return bool(self.blocked_by)
+        return bool(self.blocked_by) or self.blocked_reason is not None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -49,6 +52,8 @@ class Card:
             "entered_column_at": (
                 self.entered_column_at.isoformat() if self.entered_column_at else None
             ),
+            "blocked_reason": self.blocked_reason,
+            "blocked_at": self.blocked_at.isoformat() if self.blocked_at else None,
         }
 
 

@@ -256,3 +256,12 @@ class CardWorkflowService:
             return None, [evt]
 
         self.core._execute_transaction(board_id, user_id, Permission.EDIT_CARD, action)
+
+    def set_external_block(
+        self, board_id: str, card_id: str, user_id: str, reason: str | None
+    ) -> None:
+        def action(board: Board) -> tuple[None, list[Event]]:
+            event = self.core._internal_external_block(board, card_id, reason, user_id)
+            return None, [event] if event is not None else []
+
+        self.core._execute_transaction(board_id, user_id, Permission.EDIT_CARD, action)

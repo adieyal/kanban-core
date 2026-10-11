@@ -31,6 +31,7 @@ from ..spi.automation import (
     AutomationColumnFacts,
     AutomationFacts,
     AutomationRunner,
+    BlockCardAction,
     MoveCardAction,
 )
 from ..unit_of_work import KanbanUnitOfWork
@@ -117,6 +118,9 @@ class _KanbanServiceCore:
             size=card.size,
             archived=card.archived,
             attributes=card.attributes,
+            blocked_reason=card.blocked_reason,
+            blocked_at=card.blocked_at,
+            is_blocked=card.is_blocked(),
         )
 
     def automation_facts(
@@ -133,6 +137,9 @@ class _KanbanServiceCore:
                     attributes=card.attributes,
                     created_at=card.created_at,
                     entered_column_at=card.entered_column_at,
+                    blocked_reason=card.blocked_reason,
+                    blocked_at=card.blocked_at,
+                    is_blocked=card.is_blocked(),
                 )
                 for card in sorted(board.cards.values(), key=lambda item: item.id)
             ),
@@ -275,7 +282,38 @@ class _KanbanServiceCore:
             )
             return event
 
+        if isinstance(action, BlockCardAction):
+            return self._internal_external_block(
+                board, action.card_id, action.reason, user_id
+            )
+
         raise ValidationError("Unsupported automation action")
+
+    def _internal_external_block(
+        self, board: Board, card_id: str, reason: str | None, user_id: str
+    ) -> Event | None:
+        if reason is not None and (not isinstance(reason, str) or not reason.strip()):
+            raise ValidationError("External block reason must not be empty")
+        card = board.cards.get(card_id)
+        if card is None:
+            raise NotFoundError("Card not found")
+        if card.blocked_reason == reason:
+            return None
+        previous_reason = card.blocked_reason
+        now = self.clock()
+        card.blocked_reason = reason
+        card.blocked_at = now if reason is not None else None
+        self.workflow_policy.validate_update(self.policy_context(board, card, user_id))
+        board.updated_at = now
+        return self.event_factory.create(
+            "card.externally_blocked"
+            if reason is not None
+            else "card.externally_unblocked",
+            card_id,
+            "card",
+            user_id,
+            {"reason": reason if reason is not None else previous_reason},
+        )
 
     def _internal_move(
         self,
