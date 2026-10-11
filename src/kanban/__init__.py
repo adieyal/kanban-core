@@ -9,8 +9,10 @@ from .exceptions import (
     ValidationError,
 )
 from .facade import (
+    AgingCardDetailsView,
     AgingCardsView,
     BoardView,
+    CardAgeView,
     CardView,
     ColumnView,
     KanbanFacade,
@@ -22,6 +24,8 @@ from .models import WipGroup
 __version__ = "2.2.0"
 
 __all__ = [
+    "AgingCardDetailsView",
+    "CardAgeView",
     "BoardImport",
     "CardImport",
     "ColumnImport",

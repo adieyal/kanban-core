@@ -21,6 +21,7 @@ KanbanFacade(
 
 ```text
 create_board(user_id, name, columns=None) -> BoardView
+import_board(user_id, data: BoardImport) -> BoardView
 get_board(user_id, board_id) -> BoardView
 list_boards(user_id) -> list[BoardView]
 update_board(user_id, board_id, **changes) -> BoardView
@@ -35,6 +36,11 @@ a group retain capacity. Cards in columns count toward WIP even when archived.
 Tick requires `MANAGE_AUTOMATION`; its result reports processed and deferred
 initial action card IDs. See [scheduled automation](extending/scheduled-automation.md).
 
+Import consumes immutable `BoardImport`, `ColumnImport` and `CardImport` values,
+exported from `kanban`. It preserves historical IDs and unknown timestamps in
+one create-only commit with `IMPORT_BOARD` permission. Existing boards cannot
+be overwritten. See [historical import](extending/import.md) and its benchmark.
+
 ### Columns
 
 ```text
@@ -48,6 +54,7 @@ delete_column(user_id, board_id, column_id) -> None
 ```text
 add_card(user_id, board_id, column_id, title, **fields) -> CardView
 update_card(user_id, board_id, card_id, **changes) -> CardView
+patch_attributes(user_id, board_id, card_id, *, set=None, remove=()) -> CardView
 move_card(user_id, board_id, card_id, to_column_id, position=None) -> CardView
 delete_card(user_id, board_id, card_id) -> None
 block_card(user_id, board_id, card_to_block_id, blocking_card_id) -> None
@@ -56,11 +63,14 @@ block_card_external(user_id, board_id, card_id, reason) -> None
 unblock_card_external(user_id, board_id, card_id) -> None
 search_cards(user_id, board_id, **filters) -> list[CardView]
 aging_cards(user_id, board_id, now=None) -> AgingCardsView
+aging_card_details(user_id, board_id, now=None) -> AgingCardDetailsView
 ```
 
 `add_card` and `update_card` accept opaque JSON `attributes`. Updates replace the
 whole set. Views and policy/automation contexts expose recursively immutable
 copies. See [card attributes](extending/card-attributes.md).
+`patch_attributes` sets or removes selected top-level keys inside one transaction.
+JSON null is a value; removal is explicit. Ordinary updates retain replacement semantics.
 
 External blocking has a nonempty reason and is independent of dependency
 blocking. Repeating the same block is a no-op. See
@@ -86,6 +96,10 @@ unarchived cards in age-limited columns without a known entry timestamp.
 Queries accept timezone-aware `now` or use the injected clock. See
 [card age](extending/card-age.md).
 
+`AgingCardDetailsView` returns the same selected cards as immutable `CardAgeView`
+rows, each containing `card`, `column`, and calculated `age`. Unknown-age rows
+have `age=None`. Its `evaluated_at` captures the single UTC query instant.
+
 ## Public exceptions
 
 ```text
@@ -110,6 +124,7 @@ EventPublisher
 PermissionContext
 PermissionPolicy
 CardPolicyContext
+ColumnPolicyContext
 CardMovePolicyContext
 WorkflowPolicy
 SearchCard
@@ -127,3 +142,8 @@ IDFactory
 ```
 
 Internal models and services are not application API.
+
+Policy contexts carry detached column names, current occupancy and limits from
+the transaction board. Move contexts expose `from_column` and `to_column` alongside
+IDs. Hosts implement pull gates and exceptions using these facts; core WIP limits
+remain enforced. See [workflow policies](extending/workflow-policy.md).

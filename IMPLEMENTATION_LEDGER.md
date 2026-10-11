@@ -62,9 +62,30 @@ remain outside core. No built-in service classes or generic scheduling engine.
 | 1. Import #8/#9 and unknown time #12 | PASS | 50 focused tests; reviewer 79 tests; 100 cards median 28.778 ms, p95 30.678 ms over 20 runs |
 | 2. Policy facts #10/#11 | PASS | 27 focused tests; independent review 42 tests; Ruff/MyPy pass |
 | 4. Attribute patch and docs #14/#15 | PASS | 81 focused tests; review 94 tests; JSON type change regression fixed; Ruff/MyPy pass |
-| 3. Rich age observations #12 | Pending | Pending |
+| 3. Rich age observations #12 | PASS | 45 focused tests; independent review 37 tests; legacy query preserved; Ruff/MyPy pass |
 
 Benchmark host: Intel Core Ultra 7 165U, Python 3.13.3, Linux x86_64.
 Import is create-only, checked with IMPORT_BOARD permission and expected version
 zero. It emits one import audit event without replaying historical commands.
 Historical overcapacity is retained; subsequent entries enforce WIP limits.
+
+## Portable integration final acceptance
+
+| Requirement | Implementation | Executed evidence |
+| --- | --- | --- |
+| Historical identity, unknown times, blocks and attributes | import inputs and BoardImportService | 22 import tests including malformed records, denied permissions, cycles, no overwrite and replay-free import |
+| 100 representative cards imported below 50 ms | scripts/benchmark_import.py | Final 20 runs: median 33.057 ms, p95 36.841 ms, max 37.111 ms on documented host |
+| Policy names and current occupancy | ColumnPolicyContext and move lookups | 4 policy tests: same-transaction facts, immutable observations and host exception respecting WIP |
+| Atomic set/remove without changing replacement semantics | patch_attributes and shared card edit path | 22 patch tests including optimistic conflict and JSON boolean/number transitions |
+| Informational external blocking | blocking guide and unchanged move path | Default-policy blocked-card move regression |
+| Rich column-age observations with compatibility | aging_card_details and legacy projection | 4 details tests plus 19 lifecycle/age tests, including DST |
+
+Final gates: 179 tests passed; Ruff lint and formatting, MyPy for 24 source files,
+import-linter adapter boundary, uv lock check and whitespace check all pass.
+Every packet passed independent read-only review after its substantive fixes.
+Review caught mutable scalar import inputs and JSON boolean/number equality;
+both have regression coverage and the original probes now pass.
+
+No host store integration, scheduler, job actions, built-in pull thresholds or
+service-class bypass was added. New work remains local on the feature branch;
+version and remote branches are unchanged.

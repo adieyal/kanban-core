@@ -27,6 +27,7 @@ contexts or facts and return decisions/actions through their contract.
 ## Guides
 
 - [Persistence and atomic commits](extending/persistence.md)
+- [Historical board import and benchmark](extending/import.md)
 - [Permissions](extending/permissions.md)
 - [Workflow policies](extending/workflow-policy.md)
 - [Search](extending/search.md)

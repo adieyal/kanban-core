@@ -86,6 +86,22 @@ class AgingCardsView:
 
 
 @dataclass(frozen=True, slots=True)
+class CardAgeView:
+    card: CardView
+    column: ColumnView
+    age: timedelta | None
+
+
+@dataclass(frozen=True, slots=True)
+class AgingCardDetailsView:
+    """Elapsed column ages at one query instant, with unknown history separate."""
+
+    evaluated_at: datetime
+    cards: tuple[CardAgeView, ...]
+    unknown_age_cards: tuple[CardAgeView, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class BoardView:
     id: str
     version: int
@@ -368,6 +384,15 @@ class KanbanFacade:
     def aging_cards(
         self, user_id: str, board_id: str, now: datetime | None = None
     ) -> AgingCardsView:
+        details = self.aging_card_details(user_id, board_id, now)
+        return AgingCardsView(
+            cards=tuple(item.card for item in details.cards),
+            unknown_age_cards=tuple(item.card for item in details.unknown_age_cards),
+        )
+
+    def aging_card_details(
+        self, user_id: str, board_id: str, now: datetime | None = None
+    ) -> AgingCardDetailsView:
         """Query active cards strictly beyond their current column's age limit."""
         board = self._core.get_board_and_check_permission(
             board_id, user_id, Permission.VIEW_BOARD
@@ -391,7 +416,25 @@ class KanbanFacade:
                         aged.append((entered_at, card))
         aged.sort(key=lambda item: (item[0], item[1].id))
         unknown.sort(key=lambda card: card.id)
-        return AgingCardsView(
-            cards=tuple(_card_view(card, board) for _, card in aged),
-            unknown_age_cards=tuple(_card_view(card, board) for card in unknown),
+        column_views = {
+            column.id: _column_view(column) for column in board.columns.values()
+        }
+        return AgingCardDetailsView(
+            evaluated_at=query_time,
+            cards=tuple(
+                CardAgeView(
+                    _card_view(card, board),
+                    column_views[board.column_for_card(card.id).id],
+                    query_time - entered_at,
+                )
+                for entered_at, card in aged
+            ),
+            unknown_age_cards=tuple(
+                CardAgeView(
+                    _card_view(card, board),
+                    column_views[board.column_for_card(card.id).id],
+                    None,
+                )
+                for card in unknown
+            ),
         )

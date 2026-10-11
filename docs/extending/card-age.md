@@ -23,3 +23,23 @@ or contain timezone-aware datetimes. Present timestamps in persisted cards must
 also be timezone-aware; invalid records fail during restore. Queries measure
 elapsed time and order instants in UTC across daylight-saving changes.
 A host scheduler can query age limits without an automation tick.
+
+## Detailed observations
+
+Use `aging_card_details(user_id, board_id, now=None)` when callers need calculated
+ages and column metadata. `AgingCardDetailsView` exposes `evaluated_at`, `cards`
+and `unknown_age_cards`. Both tuples contain immutable `CardAgeView` rows:
+
+```python
+result = kanban.aging_card_details("alice", board_id)
+for row in result.cards:
+    print(row.card.title, row.column.name, row.age.total_seconds())
+for row in result.unknown_age_cards:
+    assert row.age is None
+```
+
+`row.age` measures elapsed time in the current column, not time since creation.
+`row.column` is the corresponding `ColumnView`. All ages use the same captured
+`evaluated_at` instant, reported in UTC, including when the host clock advances.
+Selection, permissions, ordering and archived-card exclusion match `aging_cards`.
+The older query continues to return bare card views using this same calculation.

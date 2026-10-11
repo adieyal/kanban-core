@@ -33,6 +33,7 @@ automation and event delivery are supplied from outside at composition time.
 - Deterministic testing support via injected clock and ID factory
 - Opaque card attributes, external block reasons, and shared WIP limits
 - Card age queries and bounded host-scheduled automation ticks
+- Historical board import and transactional attribute patches
 - Zero dependencies outside the Python standard library
 
 ## Installation
