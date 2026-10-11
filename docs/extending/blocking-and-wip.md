@@ -16,3 +16,23 @@ reason or clearing an already clear block changes neither state nor events.
 `kanban.spi.BlockCardAction(card_id, reason)` uses the same mutation and policy
 path inside the triggering transaction; any rejected action rolls back the
 entire transaction.
+
+# Shared WIP groups
+
+Configure a board with `update_board(user_id, board_id,
+wip_groups=[WipGroup("Active", (doing_id, review_id), 4)])`. This replaces the
+whole group configuration; pass `[]` to remove it. `WipGroup` is exported from
+`kanban`, and board views expose immutable `wip_groups`.
+
+A group needs a unique nonempty name, distinct existing column IDs, and a
+positive integer limit. All overlapping groups enforce their capacities on
+creation and entry from outside the group, including automated moves. Movement
+between group members remains permitted at capacity. Capacity counts all cards
+occupying those columns, including archived cards, consistently with individual
+column limits.
+
+Lowering a limit below occupancy is allowed; further entries wait for occupancy
+to drop. Remove a column from all groups before deleting it. Configuration and
+card mutations use the existing optimistic transaction path, so concurrent
+writes cannot silently overfill capacity. Historical snapshots have no groups;
+restoring invalid group configuration fails explicitly.

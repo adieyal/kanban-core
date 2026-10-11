@@ -16,12 +16,14 @@ from .facade import (
     KanbanFacade,
     TickResult,
 )
+from .models import WipGroup
 
 __version__ = "2.1.0"
 
 __all__ = [
     "AgingCardsView",
     "BoardView",
+    "WipGroup",
     "CardView",
     "ColumnView",
     "ConcurrencyError",

@@ -46,7 +46,7 @@ def test_external_block_is_independent_and_idempotent():
     assert events.get_events()[-1].data["reason"] == "Awaiting vendor"
 
 
-@pytest.mark.parametrize("reason", ["", "   ", 4])
+@pytest.mark.parametrize("reason", ["", "   ", 4, None])
 def test_invalid_reason_rolls_back(reason):
     facade, board, card, events = setup()
     before = facade.get_board("owner", board.id)
@@ -82,7 +82,9 @@ def test_automation_uses_policy_and_rolls_back_all_actions():
             if context.blocked_reason is not None:
                 super().validate_update(context)
 
-    facade._core.workflow_policy = Policy()
+    facade, board, card, events = setup(
+        automation_runner=Runner(), workflow_policy=Policy()
+    )
     before = facade.get_board("owner", board.id)
     count = len(events.get_events())
     with pytest.raises(ValidationError, match="rejected"):
@@ -109,3 +111,47 @@ def test_automation_block_repeats_terminate_and_expose_facts():
         len([e for e in events.get_events() if e.type == "card.externally_blocked"])
         == 1
     )
+
+
+def test_external_block_restore_validation_and_historic_defaults():
+    from dataclasses import replace
+
+    from kanban.models import Board, Card, Column
+    from kanban.repositories import FrozenMap, restore_board, snapshot_board
+    from kanban.spi import InvalidPersistenceStateError
+
+    board = Board(
+        "board",
+        owner_id="owner",
+        columns={"column": Column("column", "board", card_ids=["card"])},
+        cards={"card": Card("card")},
+    )
+    snapshot = snapshot_board(board)
+    old_cards = FrozenMap(
+        tuple(
+            (
+                card_id,
+                FrozenMap(
+                    tuple(
+                        (key, value)
+                        for key, value in state
+                        if key not in {"blocked_reason", "blocked_at"}
+                    )
+                ),
+            )
+            for card_id, state in dict(snapshot.state)["cards"]
+        )
+    )
+    historic = replace(
+        snapshot,
+        state=FrozenMap(
+            tuple(
+                (key, old_cards if key == "cards" else value)
+                for key, value in snapshot.state
+            )
+        ),
+    )
+    assert restore_board(historic).cards["card"].blocked_reason is None
+    board.cards["card"].blocked_reason = "Stop"
+    with pytest.raises(InvalidPersistenceStateError, match="external block"):
+        restore_board(snapshot_board(board))

@@ -96,6 +96,31 @@ class Column:
         return True, None
 
 
+@dataclass(frozen=True, slots=True)
+class WipGroup:
+    """Capacity shared by a named set of columns."""
+
+    name: str
+    column_ids: tuple[str, ...]
+    limit: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValidationError("WIP group name must not be empty")
+        if type(self.limit) is not int or self.limit <= 0:
+            raise ValidationError("WIP group limit must be a positive integer")
+        if not isinstance(self.column_ids, (list, tuple)):
+            raise ValidationError("WIP group columns must be a list or tuple")
+        members = tuple(self.column_ids)
+        if not members or any(
+            not isinstance(item, str) or not item.strip() for item in members
+        ):
+            raise ValidationError("WIP group must contain nonempty column IDs")
+        if len(set(members)) != len(members):
+            raise ValidationError("WIP group column IDs must be distinct")
+        object.__setattr__(self, "column_ids", members)
+
+
 @dataclass
 class Board:
     """Kanban board entity"""
@@ -110,6 +135,41 @@ class Board:
     updated_at: datetime | None = None
     owner_id: str | None = None
     team_ids: set[str] = field(default_factory=set)
+    wip_groups: tuple[WipGroup, ...] = ()
+
+    def configure_wip_groups(self, groups: object) -> None:
+        if not isinstance(groups, (list, tuple)) or any(
+            not isinstance(group, WipGroup) for group in groups
+        ):
+            raise ValidationError(
+                "WIP groups must be a list or tuple of WipGroup values"
+            )
+        if len({group.name for group in groups}) != len(groups):
+            raise ValidationError("WIP group names must be distinct")
+        if any(
+            column_id not in self.columns
+            for group in groups
+            for column_id in group.column_ids
+        ):
+            raise ValidationError("WIP group references an unknown column")
+        self.wip_groups = tuple(groups)
+
+    def validate_group_entry(
+        self, to_column_id: str, from_column_id: str | None = None
+    ) -> None:
+        for group in self.wip_groups:
+            if (
+                to_column_id not in group.column_ids
+                or from_column_id in group.column_ids
+            ):
+                continue
+            occupancy = sum(
+                len(self.columns[column_id].card_ids) for column_id in group.column_ids
+            )
+            if occupancy >= group.limit:
+                raise ValidationError(
+                    f"WIP group '{group.name}' limit of {group.limit} would be exceeded"
+                )
 
     def get_columns_ordered(self) -> list[Column]:
         return sorted(self.columns.values(), key=lambda c: c.position)

@@ -283,6 +283,8 @@ class _KanbanServiceCore:
             return event
 
         if isinstance(action, BlockCardAction):
+            if action.reason is None:
+                raise ValidationError("External block reason must not be empty")
             return self._internal_external_block(
                 board, action.card_id, action.reason, user_id
             )
@@ -335,6 +337,8 @@ class _KanbanServiceCore:
         ok, reason = to_col.can_accept_card(is_new_entry=is_new_entry)
         if not ok:
             raise ValidationError(reason)
+
+        board.validate_group_entry(to_column_id, from_col.id)
 
         current_position = from_col.card_ids.index(card_id)
         if not is_new_entry and (position is None or position == current_position):

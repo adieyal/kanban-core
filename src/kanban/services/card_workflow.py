@@ -66,6 +66,7 @@ class CardWorkflowService:
             ok, reason = col.can_accept_card(True)
             if not ok:
                 raise ValidationError(reason)
+            board.validate_group_entry(column_id)
             board.cards[card_id] = candidate
             col.card_ids.append(card_id)
             self.core.workflow_policy.validate_create(

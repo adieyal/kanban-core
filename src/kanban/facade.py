@@ -15,7 +15,7 @@ from .exceptions import (
     utc_clock,
     uuid4_factory,
 )
-from .models import Board, Card, Column
+from .models import Board, Card, Column, WipGroup
 from .permissions import Permission, PermissionPolicy, SimplePermissionPolicy
 from .policies import WorkflowPolicy
 from .repositories import KanbanRepository, restore_board
@@ -95,6 +95,7 @@ class BoardView:
     updated_at: datetime | None
     owner_id: str | None
     team_ids: frozenset[str]
+    wip_groups: tuple[WipGroup, ...] = ()
 
     def column_named(self, name: str) -> ColumnView | None:
         return next((column for column in self.columns if column.name == name), None)
@@ -155,6 +156,7 @@ def _board_view(board: Board) -> BoardView:
         updated_at=board.updated_at,
         owner_id=board.owner_id,
         team_ids=frozenset(board.team_ids),
+        wip_groups=board.wip_groups,
     )
 
 
@@ -297,6 +299,8 @@ class KanbanFacade:
     def block_card_external(
         self, user_id: str, board_id: str, card_id: str, reason: str
     ) -> None:
+        if reason is None:
+            raise ValidationError("External block reason must not be empty")
         self._cards.set_external_block(board_id, card_id, user_id, reason)
 
     def unblock_card_external(self, user_id: str, board_id: str, card_id: str) -> None:

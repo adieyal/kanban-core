@@ -199,6 +199,10 @@ class BoardAdminService:
             column = board.columns.get(column_id)
             if not column:
                 raise NotFoundError("Column not found")
+            if any(column_id in group.column_ids for group in board.wip_groups):
+                raise ValidationError(
+                    "Cannot delete a column referenced by a WIP group"
+                )
             if column.card_ids:
                 raise ValidationError("Cannot delete a non-empty column")
 
@@ -216,7 +220,7 @@ class BoardAdminService:
         )
 
     def update_board(self, board_id: str, user_id: str, **kwargs: Any) -> Board:
-        editable = {"name", "description", "owner_id", "team_ids"}
+        editable = {"name", "description", "owner_id", "team_ids", "wip_groups"}
         unknown = set(kwargs) - editable
         if unknown:
             raise ValidationError(f"Unsupported board fields: {sorted(unknown)}")
@@ -230,6 +234,10 @@ class BoardAdminService:
                     raise ValidationError("Board owner must not be empty")
                 if k == "team_ids" and not isinstance(v, set):
                     v = set(v)
+                if k == "wip_groups":
+                    board.configure_wip_groups(v)
+                    changes[k] = board.wip_groups
+                    continue
                 setattr(board, k, v)
                 changes[k] = v
 

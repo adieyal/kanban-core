@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing import Protocol
 
-from .exceptions import InvalidPersistenceStateError
-from .models import Board, Card, Column, ColumnPolicy
+from .exceptions import InvalidPersistenceStateError, ValidationError
+from .models import Board, Card, Column, ColumnPolicy, WipGroup
 
 
 class FrozenMap(tuple[tuple[str, object], ...]):
@@ -59,6 +60,7 @@ def restore_board(snapshot: BoardSnapshot) -> Board:
 
     columns = data.pop("columns")
     cards = data.pop("cards")
+    groups = data.pop("wip_groups", [])
 
     owner_id = data.get("owner_id")
     if not isinstance(owner_id, str) or not owner_id.strip():
@@ -75,6 +77,12 @@ def restore_board(snapshot: BoardSnapshot) -> Board:
         for key, value in columns.items()
     }
     board.cards = {key: Card(**value) for key, value in cards.items()}
+    try:
+        if not isinstance(groups, list):
+            raise ValidationError("Invalid WIP groups payload")
+        board.configure_wip_groups([WipGroup(**group) for group in groups])
+    except (TypeError, ValueError, ValidationError) as error:
+        raise InvalidPersistenceStateError("Invalid WIP group configuration") from error
 
     for card in board.cards.values():
         if card.blocked_reason is None:
@@ -85,7 +93,7 @@ def restore_board(snapshot: BoardSnapshot) -> Board:
         elif (
             not isinstance(card.blocked_reason, str)
             or not card.blocked_reason.strip()
-            or card.blocked_at is None
+            or not isinstance(card.blocked_at, datetime)
             or card.blocked_at.tzinfo is None
             or card.blocked_at.utcoffset() is None
         ):
