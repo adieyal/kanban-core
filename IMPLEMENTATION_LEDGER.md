@@ -61,7 +61,7 @@ remain outside core. No built-in service classes or generic scheduling engine.
 | --- | --- | --- |
 | 1. Import #8/#9 and unknown time #12 | PASS | 50 focused tests; reviewer 79 tests; 100 cards median 28.778 ms, p95 30.678 ms over 20 runs |
 | 2. Policy facts #10/#11 | PASS | 27 focused tests; independent review 42 tests; Ruff/MyPy pass |
-| 4. Attribute patch and docs #14/#15 | Pending | Pending |
+| 4. Attribute patch and docs #14/#15 | PASS | 81 focused tests; review 94 tests; JSON type change regression fixed; Ruff/MyPy pass |
 | 3. Rich age observations #12 | Pending | Pending |
 
 Benchmark host: Intel Core Ultra 7 165U, Python 3.13.3, Linux x86_64.

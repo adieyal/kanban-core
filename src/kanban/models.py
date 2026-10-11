@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from .attributes import copy_attributes
+from .attributes import attributes_equal, copy_attributes
 from .exceptions import ValidationError
 
 # ============= CORE DOMAIN MODELS =============
@@ -31,6 +31,39 @@ class Card:
 
     def __post_init__(self) -> None:
         self.attributes = copy_attributes(self.attributes)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Card) or type(self) is not type(other):
+            return NotImplemented
+        return (
+            self.id,
+            self.title,
+            self.description,
+            self.blocked_by,
+            self.blocks,
+            self.assignee_ids,
+            self.due_date,
+            self.size,
+            self.archived,
+            self.created_at,
+            self.entered_column_at,
+            self.blocked_reason,
+            self.blocked_at,
+        ) == (
+            other.id,
+            other.title,
+            other.description,
+            other.blocked_by,
+            other.blocks,
+            other.assignee_ids,
+            other.due_date,
+            other.size,
+            other.archived,
+            other.created_at,
+            other.entered_column_at,
+            other.blocked_reason,
+            other.blocked_at,
+        ) and attributes_equal(self.attributes, other.attributes)
 
     def is_blocked(self) -> bool:
         return bool(self.blocked_by) or self.blocked_reason is not None

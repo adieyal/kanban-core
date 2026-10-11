@@ -39,3 +39,30 @@ during movement and deletion. A policy rejection rolls back the operation.
 Snapshots preserve nested JSON object and array shapes. Snapshots written
 before attributes existed restore with an empty object. Card creation and
 update events include attributes in their normal `after` and `before` payloads.
+
+## Transactional patches
+
+Use `patch_attributes` to change selected top-level keys inside one operation:
+
+```python
+kanban.patch_attributes(
+    "alice", board_id, card.id,
+    set={"review": {"verdict": "accepted"}, "note": None},
+    remove=["temporary"],
+)
+```
+
+Unmentioned keys stay unchanged. Each supplied value replaces the whole value
+at that key, including nested objects. `None` is JSON null; deletion is explicit
+through `remove`. Setting and removing the same key is rejected. Removing an
+absent key is harmless; repeated identical and empty patches are no-ops.
+
+Patches use `EDIT_CARD`, validate the resulting attributes through the workflow
+policy, and produce the usual `card.updated` before/after event. Automation runs
+inside the same transaction. Rejected policies, invalid actions and conflicting
+repository writes fail without committing the patch or its events.
+
+Atomicity covers the configured repository and unit of work. A host that rebuilds
+an in-memory board and separately writes an external store must enforce matching
+concurrency and transaction semantics in that store; the library cannot protect
+writes performed outside its unit of work.

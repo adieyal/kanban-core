@@ -17,6 +17,12 @@ reason or clearing an already clear block changes neither state nor events.
 path inside the triggering transaction; any rejected action rolls back the
 entire transaction.
 
+Blocking records information; it does not implicitly prohibit movement. Under
+the default workflow policy, an externally blocked card can move and retains its
+reason and timestamp until explicitly unblocked. A host may instead reject moves
+using `CardMovePolicyContext.card.is_blocked` in `validate_move`. External unblock
+does not clear dependency links, and moving does not clear either kind of block.
+
 # Shared WIP groups
 
 Configure a board with `update_board(user_id, board_id,

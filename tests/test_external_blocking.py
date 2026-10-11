@@ -172,3 +172,12 @@ def test_external_block_state_and_event_share_advancing_clock_timestamp():
         facade.get_board("owner", board.id).updated_at
         == events.get_events()[-1].timestamp
     )
+
+
+def test_external_block_does_not_implicitly_prohibit_moves_or_clear_on_move():
+    facade, board, card, _ = setup()
+    facade.block_card_external("owner", board.id, card.id, "Waiting")
+    before = facade.get_board("owner", board.id).card(card.id)
+    moved = facade.move_card("owner", board.id, card.id, board.columns[1].id)
+    assert moved.is_blocked and moved.blocked_reason == "Waiting"
+    assert moved.blocked_at == before.blocked_at

@@ -277,6 +277,23 @@ class KanbanFacade:
         )
         return _card_view(card, board)
 
+    def patch_attributes(
+        self,
+        user_id: str,
+        board_id: str,
+        card_id: str,
+        *,
+        set: Mapping[str, object] | None = None,
+        remove: tuple[str, ...] | list[str] = (),
+    ) -> CardView:
+        card = self._cards.patch_attributes(
+            board_id, card_id, user_id, {} if set is None else set, remove
+        )
+        board = self._core.get_board_and_check_permission(
+            board_id, user_id, Permission.VIEW_BOARD
+        )
+        return _card_view(card, board)
+
     def delete_card(self, user_id: str, board_id: str, card_id: str) -> None:
         self._cards.delete_card(board_id, card_id, user_id)
 

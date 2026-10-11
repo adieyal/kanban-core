@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from ..attributes import copy_attributes
@@ -103,6 +104,41 @@ class CardWorkflowService:
         if "attributes" in changes:
             changes["attributes"] = copy_attributes(changes["attributes"])
 
+        def edit(card: Card) -> None:
+            for attr, val in changes.items():
+                setattr(card, attr, val)
+
+        return self._edit_card(board_id, card_id, user_id, edit)
+
+    def patch_attributes(
+        self,
+        board_id: str,
+        card_id: str,
+        user_id: str,
+        values: Mapping[str, object],
+        remove: tuple[str, ...] | list[str],
+    ) -> Card:
+        values = copy_attributes(values)
+        if not isinstance(remove, (list, tuple)) or any(
+            not isinstance(key, str) for key in remove
+        ):
+            raise ValidationError(
+                "Attribute removal must be a list or tuple of string keys"
+            )
+        if any(key in values for key in remove):
+            raise ValidationError("An attribute cannot be set and removed in one patch")
+        removal_keys = tuple(remove)
+
+        def edit(card: Card) -> None:
+            card.attributes.update(values)
+            for key in removal_keys:
+                card.attributes.pop(key, None)
+
+        return self._edit_card(board_id, card_id, user_id, edit)
+
+    def _edit_card(
+        self, board_id: str, card_id: str, user_id: str, edit: Callable[[Card], None]
+    ) -> Card:
         def action(board: Board) -> tuple[Card, list[Event]]:
             if card_id not in board.cards:
                 raise NotFoundError("Card not found")
@@ -110,9 +146,7 @@ class CardWorkflowService:
             card = board.cards[card_id]
             before = copy.deepcopy(card)  # cheap structural copy
 
-            # simple attribute updates
-            for attr, val in changes.items():
-                setattr(card, attr, val)
+            edit(card)
             if card == before:
                 return card, []
             self.core.workflow_policy.validate_update(

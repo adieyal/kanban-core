@@ -9,6 +9,21 @@ from types import MappingProxyType
 from .exceptions import ValidationError
 
 
+def attributes_equal(left: object, right: object) -> bool:
+    """JSON observations distinguish booleans from numbers, including nested values."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict) and isinstance(right, dict):
+        return left.keys() == right.keys() and all(
+            attributes_equal(value, right[key]) for key, value in left.items()
+        )
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(
+            attributes_equal(a, b) for a, b in zip(left, right, strict=True)
+        )
+    return bool(left == right)
+
+
 def copy_attributes(attributes: object) -> dict[str, object]:
     """Validate and copy a JSON object without retaining caller-owned containers."""
     if not isinstance(attributes, Mapping):
