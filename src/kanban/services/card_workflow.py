@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from ..attributes import copy_attributes
 from ..events import CARD_CREATED, CARD_DELETED, CARD_UPDATED, Event
 from ..exceptions import NotFoundError, ValidationError
 from ..models import Board, Card
@@ -17,6 +18,7 @@ _CREATE_FIELDS = {
     "due_date",
     "size",
     "archived",
+    "attributes",
 }
 _UPDATE_FIELDS = _CREATE_FIELDS | {"title"}
 
@@ -88,6 +90,9 @@ class CardWorkflowService:
             raise ValidationError(f"Unsupported card fields: {sorted(unknown)}")
         if "title" in changes and not str(changes["title"]).strip():
             raise ValidationError("Card title must not be empty")
+
+        if "attributes" in changes:
+            changes["attributes"] = copy_attributes(changes["attributes"])
 
         def action(board: Board) -> tuple[Card, list[Event]]:
             if card_id not in board.cards:

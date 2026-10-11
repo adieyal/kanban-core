@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
+
+from .attributes import freeze_attributes
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +24,11 @@ class CardPolicyContext:
     due_date: datetime | None
     size: float | None
     archived: bool
+
+    attributes: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attributes", freeze_attributes(self.attributes))
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .attributes import copy_attributes
 from .exceptions import ValidationError
 
 # ============= CORE DOMAIN MODELS =============
@@ -22,6 +23,10 @@ class Card:
     due_date: datetime | None = None
     size: float | None = None
     archived: bool = False
+    attributes: dict[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.attributes = copy_attributes(self.attributes)
 
     def is_blocked(self) -> bool:
         return bool(self.blocked_by)
@@ -37,6 +42,7 @@ class Card:
             "due_date": self.due_date.isoformat() if self.due_date else None,
             "size": self.size,
             "archived": self.archived,
+            "attributes": copy_attributes(self.attributes),
         }
 
 

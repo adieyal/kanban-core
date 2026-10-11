@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol, TypeAlias
 
+from ..attributes import freeze_attributes
 from ..events import Event
 
 
@@ -16,6 +18,11 @@ class AutomationCardFacts:
     title: str
     due_date: datetime | None
     archived: bool
+
+    attributes: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attributes", freeze_attributes(self.attributes))
 
 
 @dataclass(frozen=True, slots=True)

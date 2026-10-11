@@ -109,6 +109,7 @@ class _KanbanServiceCore:
             due_date=card.due_date,
             size=card.size,
             archived=card.archived,
+            attributes=card.attributes,
         )
 
     def automation_facts(
@@ -122,6 +123,7 @@ class _KanbanServiceCore:
                     card.title,
                     card.due_date,
                     card.archived,
+                    attributes=card.attributes,
                 )
                 for card in sorted(board.cards.values(), key=lambda item: item.id)
             ),

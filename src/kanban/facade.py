@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .attributes import freeze_attributes
 from .events import Event
 from .exceptions import Clock, IDFactory, ValidationError, utc_clock, uuid4_factory
 from .models import Board, Card, Column
@@ -44,6 +46,11 @@ class CardView:
     due_date: datetime | None
     size: float | None
     archived: bool
+
+    attributes: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attributes", freeze_attributes(self.attributes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +97,7 @@ def _card_view(card: Card, board: Board) -> CardView:
         due_date=card.due_date,
         size=card.size,
         archived=card.archived,
+        attributes=card.attributes,
     )
 
 
