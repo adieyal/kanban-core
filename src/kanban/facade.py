@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from .attributes import freeze_attributes
 from .events import Event
-from .exceptions import Clock, IDFactory, ValidationError, utc_clock, uuid4_factory
+from .exceptions import (
+    Clock,
+    IDFactory,
+    ValidationError,
+    require_aware_datetime,
+    utc_clock,
+    uuid4_factory,
+)
 from .models import Board, Card, Column
 from .permissions import Permission, PermissionPolicy, SimplePermissionPolicy
 from .policies import WorkflowPolicy
@@ -46,6 +53,8 @@ class CardView:
     due_date: datetime | None
     size: float | None
     archived: bool
+    created_at: datetime | None = None
+    entered_column_at: datetime | None = None
 
     attributes: Mapping[str, object] = field(default_factory=dict)
 
@@ -61,6 +70,15 @@ class ColumnView:
     card_ids: tuple[str, ...]
     color: str | None
     wip_limit: int | None
+    max_age: timedelta | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AgingCardsView:
+    """Over-age cards, oldest first, and cards whose column-entry age is unknown."""
+
+    cards: tuple[CardView, ...]
+    unknown_age_cards: tuple[CardView, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +116,8 @@ def _card_view(card: Card, board: Board) -> CardView:
         size=card.size,
         archived=card.archived,
         attributes=card.attributes,
+        created_at=card.created_at,
+        entered_column_at=card.entered_column_at,
     )
 
 
@@ -109,6 +129,7 @@ def _column_view(column: Column) -> ColumnView:
         card_ids=tuple(column.card_ids),
         color=column.color,
         wip_limit=column.policy.wip_limit,
+        max_age=column.policy.max_age,
     )
 
 
@@ -302,4 +323,34 @@ class KanbanFacade:
         )
         return TickResult(
             tuple(batch.processed_card_ids), tuple(batch.deferred_card_ids)
+        )
+
+    def aging_cards(
+        self, user_id: str, board_id: str, now: datetime | None = None
+    ) -> AgingCardsView:
+        """Query active cards strictly beyond their current column's age limit."""
+        board = self._core.get_board_and_check_permission(
+            board_id, user_id, Permission.VIEW_BOARD
+        )
+        query_time = self._core.clock() if now is None else require_aware_datetime(now)
+        aged: list[Card] = []
+        unknown: list[Card] = []
+        for column in board.get_columns_ordered():
+            if column.policy.max_age is None:
+                continue
+            for card in board.get_cards_in_column(column.id):
+                if card.archived:
+                    continue
+                if card.entered_column_at is None:
+                    unknown.append(card)
+                elif (
+                    query_time - require_aware_datetime(card.entered_column_at)
+                    > column.policy.max_age
+                ):
+                    aged.append(card)
+        aged.sort(key=lambda card: (card.entered_column_at, card.id))
+        unknown.sort(key=lambda card: card.id)
+        return AgingCardsView(
+            cards=tuple(_card_view(card, board) for card in aged),
+            unknown_age_cards=tuple(_card_view(card, board) for card in unknown),
         )

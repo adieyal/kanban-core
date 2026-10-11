@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol, TypeAlias
 
 from ..attributes import freeze_attributes
@@ -18,8 +18,9 @@ class AutomationCardFacts:
     title: str
     due_date: datetime | None
     archived: bool
-
     attributes: Mapping[str, object] = field(default_factory=dict)
+    created_at: datetime | None = None
+    entered_column_at: datetime | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attributes", freeze_attributes(self.attributes))
@@ -29,6 +30,7 @@ class AutomationCardFacts:
 class AutomationColumnFacts:
     id: str
     name: str
+    max_age: timedelta | None = None
 
 
 @dataclass(frozen=True, slots=True)

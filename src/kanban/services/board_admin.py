@@ -123,7 +123,7 @@ class BoardAdminService:
             if "policy" in kwargs:
                 pol = kwargs["policy"]
                 if isinstance(pol, dict):
-                    policy_fields = {"wip_limit"}
+                    policy_fields = {"wip_limit", "max_age"}
                     unknown_policy = set(pol) - policy_fields
                     if unknown_policy:
                         raise ValidationError(
@@ -132,9 +132,10 @@ class BoardAdminService:
                     for k, v in pol.items():
                         setattr(column.policy, k, v)
                 elif isinstance(pol, ColumnPolicy):
-                    column.policy = pol
+                    column.policy = copy.deepcopy(pol)
                 else:
                     raise ValidationError("Unsupported policy payload")
+                column.policy.validate()
 
             if column == before:
                 return column, []

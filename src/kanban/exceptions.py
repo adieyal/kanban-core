@@ -50,3 +50,10 @@ class IDFactory(Protocol):
 
 def uuid4_factory() -> str:
     return str(uuid.uuid4())
+
+
+def require_aware_datetime(value: datetime) -> datetime:
+    """Validate a timestamp supplied by a host clock or query caller."""
+    if not isinstance(value, datetime) or value.utcoffset() is None:
+        raise ValidationError("Timestamp must be a timezone-aware datetime")
+    return value

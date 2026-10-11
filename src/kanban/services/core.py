@@ -15,6 +15,7 @@ from ..exceptions import (
     NotFoundError,
     PermissionError,
     ValidationError,
+    require_aware_datetime,
 )
 from ..models import Board, Card
 from ..permissions import Permission, PermissionContext, PermissionPolicy
@@ -60,6 +61,8 @@ class EventFactory:
         entity_type: str,
         user_id: str | None,
         data: dict[str, object],
+        *,
+        timestamp: datetime | None = None,
     ) -> Event:
         return Event(
             type=event_type,
@@ -68,7 +71,7 @@ class EventFactory:
             user_id=user_id,
             data=data,
             id=self.id_factory(),
-            timestamp=self.clock(),
+            timestamp=self.clock() if timestamp is None else timestamp,
         )
 
 
@@ -90,9 +93,13 @@ class _KanbanServiceCore:
         self.permission_checker = permission_checker
         self.searcher = searcher
         self.automation_runner = automation_runner
-        self.clock = clock
+
+        def aware_clock() -> datetime:
+            return require_aware_datetime(clock())
+
+        self.clock = aware_clock
         self.id_factory = id_factory
-        self.event_factory = EventFactory(clock, id_factory)
+        self.event_factory = EventFactory(self.clock, id_factory)
         self.unit_of_work = unit_of_work
         self.workflow_policy = workflow_policy or AllowAllWorkflowPolicy()
 
@@ -124,11 +131,15 @@ class _KanbanServiceCore:
                     card.due_date,
                     card.archived,
                     attributes=card.attributes,
+                    created_at=card.created_at,
+                    entered_column_at=card.entered_column_at,
                 )
                 for card in sorted(board.cards.values(), key=lambda item: item.id)
             ),
             columns=tuple(
-                AutomationColumnFacts(column.id, column.name)
+                AutomationColumnFacts(
+                    column.id, column.name, max_age=column.policy.max_age
+                )
                 for column in board.get_columns_ordered()
             ),
             now=now if now is not None else self.clock(),
@@ -309,7 +320,10 @@ class _KanbanServiceCore:
 
         from_col.card_ids.remove(card_id)
         to_col.card_ids.insert(insert_at, card_id)
-        board.updated_at = self.clock()
+        now = self.clock()
+        if is_new_entry:
+            card.entered_column_at = now
+        board.updated_at = now
 
         return card, self.event_factory.create(
             "card.moved",
@@ -320,5 +334,11 @@ class _KanbanServiceCore:
                 "from_column_id": from_col.id,
                 "to_column_id": to_col.id,
                 "position": insert_at,
+                "entered_column_at": (
+                    card.entered_column_at.isoformat()
+                    if card.entered_column_at
+                    else None
+                ),
             },
+            timestamp=now,
         )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from .attributes import copy_attributes
@@ -24,6 +24,8 @@ class Card:
     size: float | None = None
     archived: bool = False
     attributes: dict[str, object] = field(default_factory=dict)
+    created_at: datetime | None = None
+    entered_column_at: datetime | None = None
 
     def __post_init__(self) -> None:
         self.attributes = copy_attributes(self.attributes)
@@ -43,6 +45,10 @@ class Card:
             "size": self.size,
             "archived": self.archived,
             "attributes": copy_attributes(self.attributes),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "entered_column_at": (
+                self.entered_column_at.isoformat() if self.entered_column_at else None
+            ),
         }
 
 
@@ -51,6 +57,16 @@ class ColumnPolicy:
     """Rules for column behavior."""
 
     wip_limit: int | None = None
+    max_age: timedelta | None = None
+
+    def __post_init__(self) -> None:
+        self.validate()
+
+    def validate(self) -> None:
+        if self.max_age is not None and (
+            not isinstance(self.max_age, timedelta) or self.max_age <= timedelta(0)
+        ):
+            raise ValidationError("Column max_age must be a positive timedelta")
 
 
 @dataclass

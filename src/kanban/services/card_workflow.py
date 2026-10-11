@@ -54,9 +54,12 @@ class CardWorkflowService:
 
             col = board.columns[column_id]
             card_id = self.core.id_factory()
+            now = self.core.clock()
             candidate = Card(
                 id=card_id,
                 title=title,
+                created_at=now,
+                entered_column_at=now,
                 **kwargs,
             )
             # enforce entry criteria & WIP
@@ -68,10 +71,15 @@ class CardWorkflowService:
             self.core.workflow_policy.validate_create(
                 self.core.policy_context(board, candidate, user_id)
             )
-            board.updated_at = self.core.clock()
+            board.updated_at = now
 
             evt = self.core.event_factory.create(
-                CARD_CREATED, card_id, "card", user_id, {"after": candidate.to_dict()}
+                CARD_CREATED,
+                card_id,
+                "card",
+                user_id,
+                {"after": candidate.to_dict()},
+                timestamp=now,
             )
             return candidate, [evt]
 
