@@ -4,7 +4,11 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Protocol
 
-from .exceptions import InvalidPersistenceStateError, ValidationError
+from .exceptions import (
+    InvalidPersistenceStateError,
+    ValidationError,
+    require_aware_datetime,
+)
 from .models import Board, Card, Column, ColumnPolicy, WipGroup
 
 
@@ -85,6 +89,15 @@ def restore_board(snapshot: BoardSnapshot) -> Board:
         raise InvalidPersistenceStateError("Invalid WIP group configuration") from error
 
     for card in board.cards.values():
+        for field_name in ("created_at", "entered_column_at"):
+            timestamp = getattr(card, field_name)
+            if timestamp is not None:
+                try:
+                    require_aware_datetime(timestamp)
+                except ValidationError as error:
+                    raise InvalidPersistenceStateError(
+                        f"Card {field_name} must be a timezone-aware datetime or None"
+                    ) from error
         if card.blocked_reason is None:
             if card.blocked_at is not None:
                 raise InvalidPersistenceStateError(

@@ -26,12 +26,11 @@ class Card:
     attributes: dict[str, object] = field(default_factory=dict)
     created_at: datetime | None = None
     entered_column_at: datetime | None = None
+    blocked_reason: str | None = None
+    blocked_at: datetime | None = None
 
     def __post_init__(self) -> None:
         self.attributes = copy_attributes(self.attributes)
-
-    blocked_reason: str | None = None
-    blocked_at: datetime | None = None
 
     def is_blocked(self) -> bool:
         return bool(self.blocked_by) or self.blocked_reason is not None

@@ -37,10 +37,18 @@ class TriageRunner:
 detached `AutomationFacts`. Facts contain only card and column observations; they
 do not expose a board, repository, service, or transaction coordinator.
 
-The only supported action is `MoveCardAction(card_id, to_column_id)`. Kanban Core
-executes it through the same move path used by `KanbanFacade`, so target-column
-existence, WIP limits, workflow policy, ordering, event generation, optimistic
-concurrency, and unit-of-work behavior remain in core.
+Supported actions are `MoveCardAction(card_id, to_column_id)` and
+`BlockCardAction(card_id, reason)`. Kanban Core executes them through the same
+mutation paths used by `KanbanFacade`, including workflow policy, WIP validation
+for moves, event generation, optimistic concurrency, and unit-of-work behavior.
+Block actions affect external blocking and preserve dependency links. Repeating
+the same reason is a no-op.
+
+Card facts expose immutable attributes, lifecycle timestamps and blocking state.
+Column facts expose `max_age`. Time-based rules can run on host-scheduled
+[`tick`](scheduled-automation.md) commands, using `facts.now` as the evaluation
+instant. Convert aware datetimes to UTC before computing elapsed time if the
+host uses daylight-saving timezones.
 
 ## Transactions and chaining
 

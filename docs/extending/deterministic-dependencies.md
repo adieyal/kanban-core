@@ -19,3 +19,7 @@ kanban = KanbanFacade(
 
 Use these for repeatable tests, fixtures, simulations and controlled migration
 tooling. Production applications can normally use the defaults.
+
+Clocks must return timezone-aware `datetime` values. Missing lifecycle timestamps
+in historical snapshots remain `None`; the module does not infer creation or
+column-entry times for those cards.

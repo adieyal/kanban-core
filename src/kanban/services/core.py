@@ -236,6 +236,8 @@ class _KanbanServiceCore:
                     trigger, self.automation_facts(board, now=tick_time)
                 )
             ):
+                if not isinstance(requested, (MoveCardAction, BlockCardAction)):
+                    raise ValidationError("Unsupported automation action")
                 is_tick_trigger = (
                     tick_batch is not None and trigger.type == "board.tick"
                 )
@@ -315,6 +317,7 @@ class _KanbanServiceCore:
             "card",
             user_id,
             {"reason": reason if reason is not None else previous_reason},
+            timestamp=now,
         )
 
     def _internal_move(

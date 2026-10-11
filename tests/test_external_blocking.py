@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -155,3 +155,20 @@ def test_external_block_restore_validation_and_historic_defaults():
     board.cards["card"].blocked_reason = "Stop"
     with pytest.raises(InvalidPersistenceStateError, match="external block"):
         restore_board(snapshot_board(board))
+
+
+def test_external_block_state_and_event_share_advancing_clock_timestamp():
+    times = iter(
+        datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=i)
+        for i in range(100)
+    )
+    facade, board, card, events = setup(clock=lambda: next(times))
+    facade.block_card_external("owner", board.id, card.id, "Waiting")
+    blocked = facade.get_board("owner", board.id).card(card.id)
+    assert blocked.blocked_at == events.get_events()[-1].timestamp
+    assert facade.get_board("owner", board.id).updated_at == blocked.blocked_at
+    facade.unblock_card_external("owner", board.id, card.id)
+    assert (
+        facade.get_board("owner", board.id).updated_at
+        == events.get_events()[-1].timestamp
+    )

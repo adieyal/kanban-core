@@ -19,5 +19,7 @@ card ID. `unknown_age_cards` contains active cards in limited columns with an
 unknown entry timestamp, sorted by ID. Archived cards and columns without age
 limits are excluded. The query uses the injected clock when `now` is omitted,
 emits no events and writes no state. Clocks and explicit query times must return
-or contain timezone-aware datetimes. A host scheduler can query age limits
-without an automation tick.
+or contain timezone-aware datetimes. Present timestamps in persisted cards must
+also be timezone-aware; invalid records fail during restore. Queries measure
+elapsed time and order instants in UTC across daylight-saving changes.
+A host scheduler can query age limits without an automation tick.

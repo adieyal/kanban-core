@@ -31,6 +31,8 @@ automation and event delivery are supplied from outside at composition time.
 - Automation that reacts to events and proposes actions
 - An event system for audit trails, outboxes and integrations
 - Deterministic testing support via injected clock and ID factory
+- Opaque card attributes, external block reasons, and shared WIP limits
+- Card age queries and bounded host-scheduled automation ticks
 - Zero dependencies outside the Python standard library
 
 ## Installation

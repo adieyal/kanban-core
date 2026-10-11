@@ -1,5 +1,6 @@
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -20,6 +21,52 @@ class MutableClock:
 
     def __call__(self):
         return self.now
+
+
+@pytest.mark.parametrize("field", ["created_at", "entered_column_at"])
+@pytest.mark.parametrize("value", [datetime(2026, 1, 1), "2026-01-01", 42])
+def test_restore_rejects_invalid_lifecycle_timestamps(environment, field, value):
+    from kanban import InvalidPersistenceStateError
+    from kanban.repositories import restore_board, snapshot_board
+
+    facade, board, _, repository, _ = environment
+    card = facade.add_card("owner", board.id, board.columns[0].id, "Task")
+    state = restore_board(repository.get(board.id))
+    setattr(state.cards[card.id], field, value)
+    with pytest.raises(InvalidPersistenceStateError, match="timezone-aware"):
+        restore_board(snapshot_board(state))
+
+
+def test_column_age_measures_elapsed_time_across_dst(environment):
+    facade, board, clock, _, _ = environment
+    zone = ZoneInfo("America/New_York")
+    clock.now = datetime(2026, 11, 1, 0, 30, tzinfo=zone)
+    facade.update_column(
+        "owner", board.id, board.columns[0].id, policy={"max_age": timedelta(hours=2)}
+    )
+    card = facade.add_card("owner", board.id, board.columns[0].id, "Before fallback")
+    clock.now = datetime(2026, 11, 1, 2, 0, tzinfo=zone)
+    assert tuple(item.id for item in facade.aging_cards("owner", board.id).cards) == (
+        card.id,
+    )
+
+
+def test_aging_order_distinguishes_repeated_dst_hour(environment):
+    facade, board, clock, _, _ = environment
+    zone = ZoneInfo("America/New_York")
+    facade.update_column(
+        "owner", board.id, board.columns[0].id, policy={"max_age": timedelta(minutes=1)}
+    )
+    # Create the later instant first, so generated IDs/order cannot hide a wall-time tie.
+    clock.now = datetime(2026, 11, 1, 1, 30, tzinfo=zone, fold=1)
+    later = facade.add_card("owner", board.id, board.columns[0].id, "Later")
+    clock.now = datetime(2026, 11, 1, 1, 45, tzinfo=zone, fold=0)
+    earlier = facade.add_card("owner", board.id, board.columns[0].id, "Earlier")
+    clock.now = datetime(2026, 11, 1, 3, 0, tzinfo=zone)
+    assert tuple(item.id for item in facade.aging_cards("owner", board.id).cards) == (
+        earlier.id,
+        later.id,
+    )
 
 
 @pytest.fixture

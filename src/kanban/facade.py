@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .attributes import freeze_attributes
@@ -349,8 +349,10 @@ class KanbanFacade:
         board = self._core.get_board_and_check_permission(
             board_id, user_id, Permission.VIEW_BOARD
         )
-        query_time = self._core.clock() if now is None else require_aware_datetime(now)
-        aged: list[Card] = []
+        query_time = (
+            self._core.clock() if now is None else require_aware_datetime(now)
+        ).astimezone(timezone.utc)
+        aged: list[tuple[datetime, Card]] = []
         unknown: list[Card] = []
         for column in board.get_columns_ordered():
             if column.policy.max_age is None:
@@ -360,14 +362,13 @@ class KanbanFacade:
                     continue
                 if card.entered_column_at is None:
                     unknown.append(card)
-                elif (
-                    query_time - require_aware_datetime(card.entered_column_at)
-                    > column.policy.max_age
-                ):
-                    aged.append(card)
-        aged.sort(key=lambda card: (card.entered_column_at, card.id))
+                else:
+                    entered_at = card.entered_column_at.astimezone(timezone.utc)
+                    if query_time - entered_at > column.policy.max_age:
+                        aged.append((entered_at, card))
+        aged.sort(key=lambda item: (item[0], item[1].id))
         unknown.sort(key=lambda card: card.id)
         return AgingCardsView(
-            cards=tuple(_card_view(card, board) for card in aged),
+            cards=tuple(_card_view(card, board) for _, card in aged),
             unknown_age_cards=tuple(_card_view(card, board) for card in unknown),
         )

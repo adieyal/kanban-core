@@ -5,6 +5,9 @@ Tick is a transactional command requiring `MANAGE_AUTOMATION`, not a scheduler.
 It emits `board.tick` with an injected-clock timestamp. Rules evaluate the usual
 automation facts and return supported actions.
 
+All facts evaluated during one tick share its trigger timestamp, even when the
+injected clock advances while actions execute.
+
 `TickResult.processed_card_ids` records initial actions attempted, including no-ops.
 `deferred_card_ids` records initial actions beyond `max_actions`, in runner order.
 The limit is a positive integer and counts actions, so a card may occur more than

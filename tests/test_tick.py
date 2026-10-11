@@ -139,3 +139,20 @@ def test_tick_facts_use_trigger_time_with_an_advancing_clock():
     facade.tick("alice", board.id)
     tick_event = runner.observations[0][0]
     assert all(now == tick_event.timestamp for _, now in runner.observations)
+
+
+@pytest.mark.parametrize("limit", [1, 2])
+def test_tick_rejects_unsupported_actions_before_batch_bookkeeping(limit):
+    class Malformed(TickMoves):
+        def evaluate(self, event, facts):
+            if event.type == "board.tick":
+                return super().evaluate(event, facts) + (object(),)
+            return ()
+
+    facade, repo, events, board = setup(Malformed(), count=1)
+    before = repo.get(board.id)
+    before_events = events.get_events()
+    with pytest.raises(ValidationError, match="Unsupported automation action"):
+        facade.tick("alice", board.id, max_actions=limit)
+    assert repo.get(board.id) == before
+    assert events.get_events() == before_events
